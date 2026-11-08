@@ -19,38 +19,69 @@ const unmatchedOperation = "http.unmatched"
 // path is never used as a template for header dispatch.
 const headerOperation = "http.header"
 
-// routeVar describes one path variable of a registered route. name is the
-// wildcard name used in the ServeMux pattern; field is the business field
-// name the value binds to (empty means same as name). Generated routes map
-// internal names ("p0") back to their original field paths ("book.name").
-type routeVar struct {
-	name  string
-	field string
+// PathBinding maps one business field of a request message to the
+// wildcards of a compiled route pattern (PRD §12.3-§12.5). The field value
+// is the Segments joined with "/": literal segments contribute themselves,
+// "*" and "**" contribute the value of the matching pattern wildcard.
+// A plain "{id}" variable is Binding{Field: "id", Segments: ["*"],
+// Wildcards: ["id"]}; a composite resource name
+// "/v1/{name=projects/*/books/*}" compiles to pattern
+// "/v1/projects/{p0}/books/{p1}" with Segments
+// ["projects", "*", "books", "*"] and Wildcards ["p0", "p1"], so the bound
+// field receives the full resource name "projects/.../books/...".
+type PathBinding struct {
+	Field     string   // business field path, e.g. "name" or "book.name"
+	Segments  []string // value segments: literals, "*" and "**"
+	Wildcards []string // pattern wildcard name for each "*" / "**" segment
+}
+
+// composeValues builds the business-named variable values for a request.
+// When a wildcard carries a custom-verb suffix ("42:publish"), the
+// dispatcher passes the stripped resource ("42") through overrideName and
+// overrideValue; other wildcards are read through Request.PathValue, which
+// decodes each segment exactly once (D8).
+func composeValues(bindings []PathBinding, r *http.Request, overrideName, overrideValue string) url.Values {
+	vars := make(url.Values, len(bindings))
+	for _, b := range bindings {
+		var sb strings.Builder
+		wi := 0
+		for i, seg := range b.Segments {
+			if i > 0 {
+				sb.WriteByte('/')
+			}
+			if seg == "*" || seg == "**" {
+				name := b.Wildcards[wi]
+				wi++
+				if name == overrideName {
+					sb.WriteString(overrideValue)
+				} else {
+					sb.WriteString(r.PathValue(name))
+				}
+			} else {
+				sb.WriteString(seg)
+			}
+		}
+		vars[b.Field] = []string{sb.String()}
+	}
+	return vars
 }
 
 // routeEntry is one Route Registry record. The registry records
 // registration-time metadata only; it never participates in request
 // matching and keeps no second priority system (PRD §7.3).
 type routeEntry struct {
-	method  string     // "" means the route was registered without a method constraint
-	path    string     // original path template as registered (before pattern rewrite)
-	pattern string     // ServeMux pattern the route is registered under
-	vars    []routeVar // path variable descriptors
+	method   string        // "" means the route was registered without a method constraint
+	path     string        // original path template as registered (before pattern rewrite)
+	pattern  string        // ServeMux pattern the route is registered under
+	bindings []PathBinding // field extraction descriptors
 }
 
 // values extracts this entry's path variables from a matched request.
-// Values are read through Request.PathValue which decodes each segment
-// exactly once; no additional unescaping is applied (D8).
 func (e *routeEntry) values(r *http.Request) url.Values {
-	vars := make(url.Values, len(e.vars))
-	for _, v := range e.vars {
-		name := v.field
-		if name == "" {
-			name = v.name
-		}
-		vars[name] = []string{r.PathValue(v.name)}
+	if len(e.bindings) == 0 {
+		return url.Values{}
 	}
-	return vars
+	return composeValues(e.bindings, r, "", "")
 }
 
 // headerRoute records one HandleHeader registration (D2): dispatch runs
@@ -62,13 +93,14 @@ type headerRoute struct {
 	handler http.Handler
 }
 
-// routeVarsCtxKey is the request context key carrying the selected
-// routeEntry whose variable descriptors Context.Vars and DefaultRequestVars
-// read. The entry is placed on the request after route selection (PRD §5.5).
+// routeVarsCtxKey is the request context key carrying the computed path
+// variable values (business field names) of the selected route binding.
+// Context.Vars and DefaultRequestVars read them; the values are computed
+// once after route selection (PRD §5.5).
 type routeVarsCtxKey struct{}
 
 // compilePath rewrites a registered path template into a ServeMux pattern
-// path and its variable descriptors.
+// path and its field bindings.
 //
 // Gorilla-style single-segment variables with a regex constraint
 // ("{id:[0-9]+}") become plain wildcards ("{id}"); the constraint is
@@ -76,12 +108,13 @@ type routeVarsCtxKey struct{}
 // Multi-segment wildcards ("{name...}") are preserved. Templates whose
 // constraint spans multiple segments ("{name=a/*}" style resource names)
 // are rejected here: they are generator territory and must be compiled by
-// protoc-gen-go-http (PRD §12), not silently narrowed.
-func compilePath(p string) (string, []routeVar, error) {
+// protoc-gen-go-http (PRD §12), not silently narrowed. Field paths with a
+// dot ("{book.name}") are likewise generator territory.
+func compilePath(p string) (string, []PathBinding, error) {
 	if p == "" {
 		return "", nil, fmt.Errorf("invalid route path %q: empty", p)
 	}
-	var vars []routeVar
+	var bindings []PathBinding
 	var b strings.Builder
 	for i := 0; i < len(p); {
 		if p[i] != '{' {
@@ -113,38 +146,16 @@ func compilePath(p string) (string, []routeVar, error) {
 			b.WriteString("{")
 			b.WriteString(name)
 			b.WriteString("...}")
+			bindings = append(bindings, PathBinding{Field: name, Segments: []string{"**"}, Wildcards: []string{name}})
 		} else {
 			b.WriteString("{")
 			b.WriteString(name)
 			b.WriteString("}")
+			bindings = append(bindings, PathBinding{Field: name, Segments: []string{"*"}, Wildcards: []string{name}})
 		}
-		vars = append(vars, routeVar{name: name})
 		i += end + 1
 	}
-	return b.String(), vars, nil
-}
-
-// buildPattern composes the full ServeMux pattern for a registration.
-// method "*" and "" semantics:
-//   - "*" registers without a method constraint (matches every method),
-//     matching the previous Router.Handle("*", ...) behavior.
-//   - "" is rejected: the previous engine could never match it and the
-//     standard library has no equivalent dead pattern, so it is exposed at
-//     registration time instead of being silently remapped (PRD §5.4).
-func buildPattern(method, fullPath string) (string, error) {
-	switch method {
-	case "*":
-		return fullPath, nil
-	case "":
-		return "", fmt.Errorf("invalid method %q for route %q: use \"*\" to match all methods", method, fullPath)
-	}
-	for i := 0; i < len(method); i++ {
-		c := method[i]
-		if c == ' ' || c == '\t' || c == '/' {
-			return "", fmt.Errorf("invalid method %q for route %q", method, fullPath)
-		}
-	}
-	return method + " " + fullPath, nil
+	return b.String(), bindings, nil
 }
 
 // joinPath combines a route prefix and a relative path without path.Join's

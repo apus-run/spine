@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -202,31 +201,27 @@ func buildHTTPRule(g *protogen.GeneratedFile, service *protogen.Service, m *prot
 func buildMethodDesc(g *protogen.GeneratedFile, m *protogen.Method, method, path string) *methodDesc {
 	defer func() { methodSets[m.GoName]++ }()
 
-	pathTemplate := path
-	vars := buildPathVars(path)
+	cp, err := compilePattern(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\u001B[31mERROR\u001B[m: %v\n", err)
+		os.Exit(2)
+	}
 
-	for v, s := range vars {
+	for _, v := range cp.Vars {
 		fields := m.Input.Desc.Fields()
-
-		if s != nil {
-			path = replacePath(v, *s, path)
-		}
-		for _, field := range strings.Split(v, ".") {
+		for _, field := range strings.Split(v.Field, ".") {
 			if strings.TrimSpace(field) == "" {
 				continue
 			}
-			if strings.Contains(field, ":") {
-				field = strings.Split(field, ":")[0]
-			}
 			fd := fields.ByName(protoreflect.Name(field))
 			if fd == nil {
-				fmt.Fprintf(os.Stderr, "\u001B[31mERROR\u001B[m: The corresponding field '%s' declaration in message could not be found in '%s'\n", v, path)
+				fmt.Fprintf(os.Stderr, "\u001B[31mERROR\u001B[m: The corresponding field '%s' declaration in message could not be found in '%s'\n", v.Field, path)
 				os.Exit(2)
 			}
 			if fd.IsMap() {
-				fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: The field in path:'%s' shouldn't be a map.\n", v)
+				fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: The field in path:'%s' shouldn't be a map.\n", v.Field)
 			} else if fd.IsList() {
-				fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: The field in path:'%s' shouldn't be a list.\n", v)
+				fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: The field in path:'%s' shouldn't be a list.\n", v.Field)
 			} else if fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind {
 				fields = fd.Message().Fields()
 			}
@@ -242,6 +237,12 @@ func buildMethodDesc(g *protogen.GeneratedFile, m *protogen.Method, method, path
 		}
 		comment += deprecationComment
 	}
+	registerMethod := method
+	if m.Desc.IsStreamingClient() {
+		// Client-streaming RPCs are served over WebSocket, whose handshake
+		// is an HTTP GET.
+		registerMethod = http.MethodGet
+	}
 	return &methodDesc{
 		Name:            m.GoName,
 		OriginalName:    string(m.Desc.Name()),
@@ -249,14 +250,51 @@ func buildMethodDesc(g *protogen.GeneratedFile, m *protogen.Method, method, path
 		Request:         g.QualifiedGoIdent(m.Input.GoIdent),
 		Reply:           g.QualifiedGoIdent(m.Output.GoIdent),
 		Comment:         comment,
-		Path:            path,
-		PathTemplate:    pathTemplate,
+		Path:            cp.Path,
+		PathTemplate:    path,
 		Method:          method,
-		HasVars:         len(vars) > 0,
+		RegisterMethod:  registerMethod,
+		Action:          cp.Action,
+		BindingsCode:    bindingsCode(cp.Vars),
+		HasVars:         len(cp.Vars) > 0,
 		ReplyHTTPBody:   isHTTPBodyMessage(m.Output.Desc),
 		ClientStreaming: m.Desc.IsStreamingClient(),
 		ServerStreaming: m.Desc.IsStreamingServer(),
 	}
+}
+
+// bindingsCode renders the compiled variables as a Go slice literal of
+// transport/http.PathBinding values ("" when the route has no variables).
+func bindingsCode(vars []compiledVar) string {
+	if len(vars) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("[]http.PathBinding{")
+	for _, v := range vars {
+		b.WriteString("{Field: ")
+		fmt.Fprintf(&b, "%q", v.Field)
+		b.WriteString(", Segments: []string{")
+		for i, s := range v.Segments {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "%q", s)
+		}
+		b.WriteString("}, Wildcards: []string{")
+		for i, s := range v.Wildcards {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "%q", s)
+		}
+		b.WriteString("}}")
+		if len(vars) > 1 {
+			b.WriteString(", ")
+		}
+	}
+	b.WriteString("}")
+	return b.String()
 }
 
 func isHTTPBodyField(fd protoreflect.FieldDescriptor) bool {
@@ -265,53 +303,6 @@ func isHTTPBodyField(fd protoreflect.FieldDescriptor) bool {
 
 func isHTTPBodyMessage(md protoreflect.MessageDescriptor) bool {
 	return md != nil && md.FullName() == httpBodyFullName
-}
-
-func buildPathVars(path string) (res map[string]*string) {
-	if strings.HasSuffix(path, "/") {
-		fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: Path %s should not end with \"/\" \n", path)
-	}
-	pattern := regexp.MustCompile(`(?i){([a-z.0-9_\s]*)=?([^{}]*)}`)
-	matches := pattern.FindAllStringSubmatch(path, -1)
-	res = make(map[string]*string, len(matches))
-	for _, m := range matches {
-		name := strings.TrimSpace(m[1])
-		if len(name) > 1 && len(m[2]) > 0 {
-			res[name] = &m[2]
-		} else {
-			res[name] = nil
-		}
-	}
-	return
-}
-
-func replacePath(name string, value string, path string) string {
-	pattern := regexp.MustCompile(fmt.Sprintf(`(?i){([\s]*%s\b[\s]*)=?([^{}]*)}`, name))
-	idx := pattern.FindStringIndex(path)
-	if len(idx) > 0 {
-		path = fmt.Sprintf("%s{%s:%s}%s",
-			path[:idx[0]], // The start of the match
-			name,
-			pathTemplateRegex(value),
-			path[idx[1]:],
-		)
-	}
-	return path
-}
-
-func pathTemplateRegex(value string) string {
-	segs := strings.Split(value, "/")
-	for i, seg := range segs {
-		switch seg {
-		case "*":
-			segs[i] = "[^/]+"
-		case "**":
-			segs[i] = ".*"
-		default:
-			segs[i] = regexp.QuoteMeta(seg)
-		}
-	}
-	return strings.Join(segs, "/")
 }
 
 func camelCaseVars(s string) string {

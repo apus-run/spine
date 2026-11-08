@@ -20,14 +20,20 @@ type {{.ServiceType}}HTTPServer interface {
 {{- end}}
 }
 
-func Register{{.ServiceType}}HTTPServer(s *http.Server, srv {{.ServiceType}}HTTPServer) {
+func Register{{$svrType}}HTTPServer(s *http.Server, srv {{$svrType}}HTTPServer) {
 	r := s.Route("/")
-	{{- range .Methods}}
-	{{- if .ClientStreaming}}
-	r.Handle("GET", "{{.Path}}", _{{$svrType}}_{{.Name}}{{.Num}}_HTTP_Handler(srv))
-	{{- else}}
-	r.Handle("{{.Method}}", "{{.Path}}", _{{$svrType}}_{{.Name}}{{.Num}}_HTTP_Handler(srv))
-	{{- end}}
+	{{- range .Groups}}
+	r.HandleBindings("{{.Method}}", "{{.Pattern}}"{{range .Bindings}},
+		http.RouteBinding{
+			Template: "{{.PathTemplate}}",
+			{{- if .Action}}
+			Action: "{{.Action}}",
+			{{- end}}
+			{{- if .BindingsCode}}
+			Bindings: {{.BindingsCode}},
+			{{- end}}
+			Handler: _{{$svrType}}_{{.Name}}{{.Num}}_HTTP_Handler(srv),
+		}{{end}})
 	{{- end}}
 }
 

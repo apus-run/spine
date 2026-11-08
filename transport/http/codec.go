@@ -52,9 +52,9 @@ type EncodeErrorFunc func(http.ResponseWriter, *http.Request, error)
 // the business field names recorded at route registration; values are read
 // through Request.PathValue (decoded exactly once, D8).
 func DefaultRequestVars(r *http.Request, v any) error {
-	vars := url.Values{}
-	if e, ok := r.Context().Value(routeVarsCtxKey{}).(*routeEntry); ok {
-		vars = e.values(r)
+	vars, _ := r.Context().Value(routeVarsCtxKey{}).(url.Values)
+	if vars == nil {
+		vars = url.Values{}
 	}
 	return bindQuery(vars, v)
 }

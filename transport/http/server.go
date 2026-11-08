@@ -315,7 +315,7 @@ func (s *Server) fullPath(p string) string {
 // registration time (initialization) and are not silently ignored (§14.4).
 // method "" registers without a method constraint (matches all methods).
 func (s *Server) register(method, p string, h http.Handler) *routeEntry {
-	patternPath, vars, err := compilePath(p)
+	patternPath, bindings, err := compilePath(p)
 	if err != nil {
 		panic(err)
 	}
@@ -328,10 +328,33 @@ func (s *Server) register(method, p string, h http.Handler) *routeEntry {
 		}
 		pattern = method + " " + patternPath
 	}
-	e := &routeEntry{method: method, path: p, pattern: pattern, vars: vars}
+	e := &routeEntry{method: method, path: p, pattern: pattern, bindings: bindings}
 	s.mux.Handle(pattern, s.routeHandler(e, h))
 	s.routes = append(s.routes, e)
 	return e
+}
+
+// registerCompiled registers a pre-compiled pattern (generator output,
+// PRD §12.9) on the ServeMux once and records one registry entry per
+// logical binding sharing it. The pattern is not rewritten; wildcard
+// validity is enforced by the ServeMux.
+func (s *Server) registerCompiled(method, pattern string, templates []string, bindings [][]PathBinding, h http.Handler) {
+	if method != "" {
+		for i := 0; i < len(method); i++ {
+			if c := method[i]; c == ' ' || c == '\t' || c == '/' {
+				panic(fmt.Sprintf("invalid method %q for route %q", method, pattern))
+			}
+		}
+		pattern = method + " " + pattern
+	}
+	s.mux.Handle(pattern, h)
+	for i, tpl := range templates {
+		e := &routeEntry{method: method, path: tpl, pattern: pattern}
+		if i < len(bindings) {
+			e.bindings = bindings[i]
+		}
+		s.routes = append(s.routes, e)
+	}
 }
 
 // routeHandler wraps a registered handler with the route metadata layer: it
@@ -347,8 +370,8 @@ func (s *Server) routeHandler(e *routeEntry, next http.Handler) http.Handler {
 				tr.pathTemplate = e.path
 			}
 		}
-		if len(e.vars) > 0 {
-			r = r.WithContext(context.WithValue(r.Context(), routeVarsCtxKey{}, e))
+		if len(e.bindings) > 0 {
+			r = r.WithContext(context.WithValue(r.Context(), routeVarsCtxKey{}, e.values(r)))
 		}
 		next.ServeHTTP(w, r)
 	})

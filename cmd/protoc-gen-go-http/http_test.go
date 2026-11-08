@@ -6,128 +6,181 @@ import (
 	"testing"
 )
 
+func mustCompile(t *testing.T, tpl string) *compiledPattern {
+	t.Helper()
+	cp, err := compilePattern(tpl)
+	if err != nil {
+		t.Fatalf("compilePattern(%q): %v", tpl, err)
+	}
+	return cp
+}
+
+// No variables: the path passes through unchanged (PRD §12.2).
 func TestNoParameters(t *testing.T) {
-	path := "/test/noparams"
-	m := buildPathVars(path)
-	if !reflect.DeepEqual(m, map[string]*string{}) {
-		t.Fatalf("Map should be empty")
+	cp := mustCompile(t, "/test/noparams")
+	if cp.Path != "/test/noparams" || len(cp.Vars) != 0 || cp.Action != "" {
+		t.Fatalf("got %+v", cp)
 	}
 }
 
+// A plain variable becomes a synthetic wildcard bound to the field (§12.3).
 func TestSingleParam(t *testing.T) {
-	path := "/test/{message.id}"
-	m := buildPathVars(path)
-	if !reflect.DeepEqual(len(m), 1) {
-		t.Fatalf("len(m) not is 1")
+	cp := mustCompile(t, "/test/{message.id}")
+	if cp.Path != "/test/{p0}" {
+		t.Fatalf("path: %s", cp.Path)
 	}
-	if m["message.id"] != nil {
-		t.Fatalf(`m["message.id"] should be empty`)
-	}
-}
-
-func TestTwoParametersReplacement(t *testing.T) {
-	path := "/test/{message.id}/{message.name=messages/*}"
-	m := buildPathVars(path)
-	if len(m) != 2 {
-		t.Fatal("len(m) should be 2")
-	}
-	if m["message.id"] != nil {
-		t.Fatal(`m["message.id"] should be nil`)
-	}
-	if m["message.name"] == nil {
-		t.Fatal(`m["message.name"] should not be nil`)
-	}
-	if *m["message.name"] != "messages/*" {
-		t.Fatal(`m["message.name"] should be "messages/*"`)
+	want := []compiledVar{{Field: "message.id", Segments: []string{"*"}, Wildcards: []string{"p0"}}}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
 	}
 }
 
-func TestNoReplacePath(t *testing.T) {
-	path := "/test/{message.id=test}"
-	if !reflect.DeepEqual(replacePath("message.id", "test", path), "/test/{message.id:test}") {
-		t.Fatal(`replacePath("message.id", "test", path) should be "/test/{message.id:test}"`)
+// Two variables, one with a constraint (PRD §12.10 TwoParametersReplacement).
+func TestTwoParameters(t *testing.T) {
+	cp := mustCompile(t, "/test/{message.id}/{message.name=messages/*}")
+	if cp.Path != "/test/{p0}/messages/{p1}" {
+		t.Fatalf("path: %s", cp.Path)
 	}
-	path = "/test/{message.id=test/*}"
-	if !reflect.DeepEqual(replacePath("message.id", "test/*", path), "/test/{message.id:test/[^/]+}") {
-		t.Fatal(`replacePath("message.id", "test/*", path) should be "/test/{message.id:test/[^/]+}"`)
+	want := []compiledVar{
+		{Field: "message.id", Segments: []string{"*"}, Wildcards: []string{"p0"}},
+		{Field: "message.name", Segments: []string{"messages", "*"}, Wildcards: []string{"p1"}},
 	}
-}
-
-func TestReplacePath(t *testing.T) {
-	path := "/test/{message.id}/{message.name=messages/*}"
-	newPath := replacePath("message.name", "messages/*", path)
-	if !reflect.DeepEqual("/test/{message.id}/{message.name:messages/[^/]+}", newPath) {
-		t.Fatal(`replacePath("message.name", "messages/*", path) should be "/test/{message.id}/{message.name:messages/[^/]+}"`)
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
 	}
 }
 
-func TestIteration(t *testing.T) {
-	path := "/test/{message.id}/{message.name=messages/*}"
-	vars := buildPathVars(path)
-	for v, s := range vars {
-		if s != nil {
-			path = replacePath(v, *s, path)
+// A literal-only constraint contributes no wildcard and a constant value,
+// matching the previous regex behavior of {message.id=test} (§12.10
+// NoReplacePath).
+func TestLiteralConstraint(t *testing.T) {
+	cp := mustCompile(t, "/test/{message.id=test}")
+	if cp.Path != "/test/test" {
+		t.Fatalf("path: %s", cp.Path)
+	}
+	want := []compiledVar{{Field: "message.id", Segments: []string{"test"}}}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
+	}
+}
+
+// A constrained variable in the middle of the path (§12.10 IterationMiddle).
+func TestConstrainedVarMiddle(t *testing.T) {
+	cp := mustCompile(t, "/test/{message.name=messages/*}/books")
+	if cp.Path != "/test/messages/{p0}/books" {
+		t.Fatalf("path: %s", cp.Path)
+	}
+	want := []compiledVar{{Field: "message.name", Segments: []string{"messages", "*"}, Wildcards: []string{"p0"}}}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
+	}
+}
+
+// Boundary constraints without literals (§12.10 ReplaceBoundary).
+func TestBoundaryConstraints(t *testing.T) {
+	cp := mustCompile(t, "/test/{message.namespace=*}/name/{message.name=*}")
+	if cp.Path != "/test/{p0}/name/{p1}" {
+		t.Fatalf("path: %s", cp.Path)
+	}
+	want := []compiledVar{
+		{Field: "message.namespace", Segments: []string{"*"}, Wildcards: []string{"p0"}},
+		{Field: "message.name", Segments: []string{"*"}, Wildcards: []string{"p1"}},
+	}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
+	}
+}
+
+// Composite resource names compile to literal segments plus wildcards, and
+// the binding keeps the literal glue so the full name is reassembled
+// (§12.4).
+func TestCompositeResourceName(t *testing.T) {
+	cp := mustCompile(t, "/v1/{name=projects/*/books/*}")
+	if cp.Path != "/v1/projects/{p0}/books/{p1}" {
+		t.Fatalf("path: %s", cp.Path)
+	}
+	want := []compiledVar{
+		{Field: "name", Segments: []string{"projects", "*", "books", "*"}, Wildcards: []string{"p0", "p1"}},
+	}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
+	}
+}
+
+// "**" compiles to a multi-segment wildcard with the literal prefix kept in
+// the binding so it is re-attached to the captured value (§12.5).
+func TestDoubleStar(t *testing.T) {
+	cp := mustCompile(t, "/v1/{name=messages/**}")
+	if cp.Path != "/v1/messages/{p0...}" {
+		t.Fatalf("path: %s", cp.Path)
+	}
+	want := []compiledVar{
+		{Field: "name", Segments: []string{"messages", "**"}, Wildcards: []string{"p0"}},
+	}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
+	}
+	if err := func() error {
+		_, err := compilePattern("/v1/{name=messages/**/books}")
+		return err
+	}(); err == nil {
+		t.Fatal(" '**' must be rejected outside the last segment")
+	}
+}
+
+// Literal segments are no longer regex-escaped: ServeMux patterns treat
+// them literally (§12.10 PathTemplateRegex literal case).
+func TestLiteralSegmentNotEscaped(t *testing.T) {
+	cp := mustCompile(t, "/v1/{name=v1.0/*}")
+	if cp.Path != "/v1/v1.0/{p0}" {
+		t.Fatalf("path: %s", cp.Path)
+	}
+	want := []compiledVar{
+		{Field: "name", Segments: []string{"v1.0", "*"}, Wildcards: []string{"p0"}},
+	}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
+	}
+}
+
+// Custom verbs compile to a legal pattern plus an Action; the wildcard
+// captures "resource:verb" and the dispatcher splits it (§12.6).
+func TestCustomAction(t *testing.T) {
+	cp := mustCompile(t, "/v1/{name=books/*}:publish")
+	if cp.Path != "/v1/books/{p0}" {
+		t.Fatalf("path: %s", cp.Path)
+	}
+	if cp.Action != "publish" {
+		t.Fatalf("action: %q", cp.Action)
+	}
+	want := []compiledVar{
+		{Field: "name", Segments: []string{"books", "*"}, Wildcards: []string{"p0"}},
+	}
+	if !reflect.DeepEqual(cp.Vars, want) {
+		t.Fatalf("vars: %+v", cp.Vars)
+	}
+
+	// A resource name legitimately containing ':' keeps the last colon as
+	// the separator ("a:b:publish" -> resource "a:b", action "publish").
+	cp = mustCompile(t, "/v1/{name=books/*}:archive")
+	if cp.Action != "archive" {
+		t.Fatalf("action: %q", cp.Action)
+	}
+}
+
+// Invalid templates fail compilation instead of generating patterns the
+// ServeMux would panic on.
+func TestCompileErrors(t *testing.T) {
+	for _, tpl := range []string{
+		"/test/{message.id",
+		"/test/}x",
+		"/test/{=books/*}",
+		"/v1/{name=/**/books}",
+		"/v1/{name=/x}",
+	} {
+		if _, err := compilePattern(tpl); err == nil {
+			t.Fatalf("compilePattern(%q) should fail", tpl)
 		}
-	}
-	if !reflect.DeepEqual("/test/{message.id}/{message.name:messages/[^/]+}", path) {
-		t.Fatal(`replacePath("message.name", "messages/*", path) should be "/test/{message.id}/{message.name:messages/[^/]+}"`)
-	}
-}
-
-func TestIterationMiddle(t *testing.T) {
-	path := "/test/{message.name=messages/*}/books"
-	vars := buildPathVars(path)
-	for v, s := range vars {
-		if s != nil {
-			path = replacePath(v, *s, path)
-		}
-	}
-	if !reflect.DeepEqual("/test/{message.name:messages/[^/]+}/books", path) {
-		t.Fatal(`replacePath("message.name", "messages/*", path) should be "/test/{message.name:messages/[^/]+}/books"`)
-	}
-}
-
-func TestReplaceBoundary(t *testing.T) {
-	path := "/test/{message.namespace=*}/name/{message.name=*}"
-	vars := buildPathVars(path)
-	for v, s := range vars {
-		if s != nil {
-			path = replacePath(v, *s, path)
-		}
-	}
-	if !reflect.DeepEqual("/test/{message.namespace:[^/]+}/name/{message.name:[^/]+}", path) {
-		t.Fatal(`"/test/{message.namespace=*}/name/{message.name=*}" should be "/test/{message.namespace:[^/]+}/name/{message.name:[^/]+}"`)
-	}
-}
-
-func TestPathTemplateRegex(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-		want  string
-	}{
-		{
-			name:  "single segment",
-			value: "messages/*",
-			want:  "messages/[^/]+",
-		},
-		{
-			name:  "multi segment",
-			value: "messages/**",
-			want:  "messages/.*",
-		},
-		{
-			name:  "literal",
-			value: "v1.0/*",
-			want:  `v1\.0/[^/]+`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := pathTemplateRegex(tt.value); got != tt.want {
-				t.Errorf("expected %s got %s", tt.want, got)
-			}
-		})
 	}
 }
 
@@ -137,30 +190,38 @@ func TestHTTPTemplateClientUsesBuildPathAndProtoJSONHeaders(t *testing.T) {
 		ServiceName: "helloworld.Greeter",
 		Methods: []*methodDesc{
 			{
-				Name:         "SayHello",
-				OriginalName: "SayHello",
-				Request:      "HelloRequest",
-				Reply:        "HelloReply",
-				Path:         "/helloworld/{name}",
-				PathTemplate: "/helloworld/{name}",
-				Method:       "GET",
-				HasVars:      true,
+				Name:           "SayHello",
+				OriginalName:   "SayHello",
+				Request:        "HelloRequest",
+				Reply:          "HelloReply",
+				Path:           "/helloworld/{p0}",
+				PathTemplate:   "/helloworld/{name}",
+				Method:         "GET",
+				RegisterMethod: "GET",
+				HasVars:        true,
+				BindingsCode:   `[]http.PathBinding{{Field: "name", Segments: []string{"*"}, Wildcards: []string{"p0"}}}`,
 			},
 			{
-				Name:         "CreateHello",
-				OriginalName: "CreateHello",
-				Request:      "CreateHelloRequest",
-				Reply:        "HelloReply",
-				Path:         "/helloworld",
-				PathTemplate: "/helloworld",
-				Method:       "POST",
-				HasBody:      true,
-				Body:         "",
+				Name:           "CreateHello",
+				OriginalName:   "CreateHello",
+				Request:        "CreateHelloRequest",
+				Reply:          "HelloReply",
+				Path:           "/helloworld",
+				PathTemplate:   "/helloworld",
+				Method:         "POST",
+				RegisterMethod: "POST",
+				HasBody:        true,
+				Body:           "",
 			},
 		},
 	}
 	got := sd.execute()
 	for _, want := range []string{
+		`r.HandleBindings("GET", "/helloworld/{p0}",`,
+		`http.RouteBinding{
+			Template: "/helloworld/{name}",`,
+		`Bindings: []http.PathBinding{{Field: "name", Segments: []string{"*"}, Wildcards: []string{"p0"}}},`,
+		`r.HandleBindings("POST", "/helloworld",`,
 		`path := http.BuildPath(pattern, in, http.WithQueryParams())`,
 		`path := http.BuildPath(pattern, in)`,
 		`http.Accept("application/protojson")`,
@@ -172,6 +233,63 @@ func TestHTTPTemplateClientUsesBuildPathAndProtoJSONHeaders(t *testing.T) {
 	}
 	if strings.Contains(got, "binding.") {
 		t.Fatalf("generated template should not reference binding package:\n%s", got)
+	}
+}
+
+// Custom actions sharing a pattern aggregate into a single registration
+// with one RouteBinding per RPC, each keeping its own template and handler
+// (§12.6).
+func TestHTTPTemplateActionAggregation(t *testing.T) {
+	sd := &serviceDesc{
+		ServiceType: "Library",
+		ServiceName: "library.v1.Library",
+		Methods: []*methodDesc{
+			{
+				Name:           "PublishBook",
+				OriginalName:   "PublishBook",
+				Num:            0,
+				Request:        "PublishBookRequest",
+				Reply:          "PublishBookResponse",
+				Path:           "/v1/books/{p0}",
+				PathTemplate:   "/v1/{name=books/*}:publish",
+				Method:         "POST",
+				RegisterMethod: "POST",
+				Action:         "publish",
+				HasVars:        true,
+				BindingsCode:   `[]http.PathBinding{{Field: "name", Segments: []string{"books", "*"}, Wildcards: []string{"p0"}}}`,
+			},
+			{
+				Name:           "ArchiveBook",
+				OriginalName:   "ArchiveBook",
+				Num:            1,
+				Request:        "ArchiveBookRequest",
+				Reply:          "ArchiveBookResponse",
+				Path:           "/v1/books/{p0}",
+				PathTemplate:   "/v1/{name=books/*}:archive",
+				Method:         "POST",
+				RegisterMethod: "POST",
+				Action:         "archive",
+				HasVars:        true,
+				BindingsCode:   `[]http.PathBinding{{Field: "name", Segments: []string{"books", "*"}, Wildcards: []string{"p0"}}}`,
+			},
+		},
+	}
+	got := sd.execute()
+	for _, want := range []string{
+		`r.HandleBindings("POST", "/v1/books/{p0}",`,
+		`Template: "/v1/{name=books/*}:publish",`,
+		`Action: "publish",`,
+		`Handler: _Library_PublishBook0_HTTP_Handler(srv),`,
+		`Template: "/v1/{name=books/*}:archive",`,
+		`Action: "archive",`,
+		`Handler: _Library_ArchiveBook1_HTTP_Handler(srv),`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("aggregated action registration missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Count(got, "r.HandleBindings") != 1 {
+		t.Fatalf("actions sharing a pattern must register once:\n%s", got)
 	}
 }
 
@@ -188,6 +306,7 @@ func TestHTTPTemplateStreamsAndHTTPBody(t *testing.T) {
 				Path:            "/helloworld",
 				PathTemplate:    "/helloworld",
 				Method:          "GET",
+				RegisterMethod:  "GET",
 				ServerStreaming: true,
 			},
 			{
@@ -198,23 +317,25 @@ func TestHTTPTemplateStreamsAndHTTPBody(t *testing.T) {
 				Path:            "/helloworld/chat",
 				PathTemplate:    "/helloworld/chat",
 				Method:          "POST",
+				RegisterMethod:  "GET",
 				ClientStreaming: true,
 				ServerStreaming: true,
 			},
 			{
-				Name:          "UploadHello",
-				OriginalName:  "UploadHello",
-				Request:       "UploadHelloRequest",
-				Reply:         "UploadHelloReply",
-				Path:          "/helloworld/upload",
-				PathTemplate:  "/helloworld/upload",
-				Method:        "POST",
-				HasBody:       true,
-				Body:          ".Body",
-				BodyField:     "body",
-				BodyQueryName: "body",
-				BodyHTTPBody:  true,
-				ResponseBody:  ".Body",
+				Name:           "UploadHello",
+				OriginalName:   "UploadHello",
+				Request:        "UploadHelloRequest",
+				Reply:          "UploadHelloReply",
+				Path:           "/helloworld/upload",
+				PathTemplate:   "/helloworld/upload",
+				Method:         "POST",
+				RegisterMethod: "POST",
+				HasBody:        true,
+				Body:           ".Body",
+				BodyField:      "body",
+				BodyQueryName:  "body",
+				BodyHTTPBody:   true,
+				ResponseBody:   ".Body",
 			},
 			{
 				Name:            "ChatData",
@@ -224,6 +345,7 @@ func TestHTTPTemplateStreamsAndHTTPBody(t *testing.T) {
 				Path:            "/v1/bitto/chat",
 				PathTemplate:    "/v1/bitto/chat",
 				Method:          "GET",
+				RegisterMethod:  "GET",
 				HasBody:         true,
 				Body:            ".Data",
 				BodyField:       "data",
@@ -242,6 +364,7 @@ func TestHTTPTemplateStreamsAndHTTPBody(t *testing.T) {
 				Path:            "/v1/bitto/text",
 				PathTemplate:    "/v1/bitto/text",
 				Method:          "GET",
+				RegisterMethod:  "GET",
 				HasBody:         true,
 				Body:            ".Text",
 				BodyField:       "text",
@@ -254,6 +377,7 @@ func TestHTTPTemplateStreamsAndHTTPBody(t *testing.T) {
 	}
 	got := sd.execute()
 	for _, want := range []string{
+		`r.HandleBindings("GET", "/helloworld/chat",`,
 		`ListHello(*ListHelloRequest, Greeter_ListHelloServer) error`,
 		`stream := http.NewServerSentEventServerStream(ctx)`,
 		`stream, err := c.cc.ServerSentEvent(ctx, "GET", path, nil, opts...)`,

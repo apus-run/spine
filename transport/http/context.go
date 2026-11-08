@@ -68,8 +68,8 @@ func (c *wrapper) Header() http.Header {
 }
 
 func (c *wrapper) Vars() url.Values {
-	if e, ok := c.req.Context().Value(routeVarsCtxKey{}).(*routeEntry); ok {
-		return e.values(c.req)
+	if vars, ok := c.req.Context().Value(routeVarsCtxKey{}).(url.Values); ok {
+		return vars
 	}
 	return url.Values{}
 }
