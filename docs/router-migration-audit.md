@@ -300,16 +300,17 @@ Side effects handled:
   These modules failed to build under the local 1.27.3 toolchain even
   before the directive change — the directive only makes the requirement
   explicit.
-- contrib/registry/kubernetes does not build under go1.27.3: its pinned
-  k8s.io/kube-openapi uses encoding/json v2 experiment APIs
-  (json.SkipFunc, json.DiscardUnknownMembers) that first exist in newer
-  toolchains. This is a pre-existing upstream incompatibility, unchanged
-  by this revision (it failed identically before the bump,
-  GOEXPERIMENT=jsonv2 notwithstanding); it needs a kube-openapi/k8s
-  dependency refresh, tracked separately from the router migration.
+- contrib/registry/kubernetes initially did not build under go1.27.3: its
+  go.mod pinned k8s.io/kube-openapi v0.0.0-20260512234627, ahead of the
+  v0.0.0-20260317180543 that the k8s.io v0.36.1 stack requires, and the
+  newer snapshot's vendored go-json-experiment uses encoding/json v2
+  experiment APIs (json.SkipFunc, json.DiscardUnknownMembers) from newer
+  toolchains. Fixed by realigning kube-openapi with the k8s stack (commit
+  05ae01e8); the failure predated the directive change (it failed
+  identically before the bump, GOEXPERIMENT=jsonv2 notwithstanding).
 
-Verification: root module build/vet/tests green on go1.27.3; all other
-modules build except contrib/registry/kubernetes as noted.
+Verification: root module build/vet/tests green on go1.27.3; every
+nested module builds.
 
 Remaining gate: the CI matrix (now Go 1.27.x) must pass on the PR. The
 per-version redirect assertions of §16.2 collapse to a single version
