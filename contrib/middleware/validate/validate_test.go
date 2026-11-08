@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/apus-run/spine/v3/internal/testdata"
+	"github.com/apus-run/spine/contrib/middleware/validate/v3/internal/testdata"
 	kerrors "github.com/apus-run/spine/v3/errors"
 	"github.com/apus-run/spine/v3/middleware"
 )
