@@ -24,6 +24,7 @@ package http
 // network flakiness; redirect probes inspect Location/Allow directly.
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -331,4 +332,19 @@ func TestProbeStdlibRedirects(t *testing.T) {
 	if !strings.HasPrefix(w.Header().Get("Allow"), "GET") {
 		t.Fatalf("stdlib 405 must carry Allow, got %q", w.Header().Get("Allow"))
 	}
+}
+
+// Old generator output (Gorilla regex patterns with multi-segment
+// constraints) must fail registration loudly instead of silently narrowing
+// to a single-segment wildcard.
+func TestProbeRejectLegacyRegexPatterns(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("legacy multi-segment regex pattern must panic at registration")
+		} else if !strings.Contains(fmt.Sprint(r), "regenerate") {
+			t.Fatalf("panic should point at regeneration, got: %v", r)
+		}
+	}()
+	srv := NewServer()
+	srv.HandleFunc("/v1/{name:messages/[^/]+}", func(w http.ResponseWriter, r *http.Request) {})
 }

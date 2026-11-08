@@ -128,8 +128,18 @@ func compilePath(p string) (string, []PathBinding, error) {
 		}
 		seg := p[i+1 : i+end]
 		name := seg
+		constraint := ""
 		if j := strings.IndexByte(seg, ':'); j >= 0 {
-			name = seg[:j]
+			name, constraint = seg[:j], seg[j+1:]
+		}
+		// A constraint spanning multiple segments ("/" or "**") is the old
+		// generator's Gorilla regex output; narrowing it to a single
+		// wildcard would silently change matching. Reject at registration
+		// so stale generated code fails loudly instead of mis-routing.
+		if strings.Contains(constraint, "/") || strings.Contains(constraint, "**") {
+			return "", nil, fmt.Errorf(
+				"invalid route path %q: multi-segment constraint %q is not supported; regenerate *_http.pb.go with the current protoc-gen-go-http, or register the compiled pattern via Router.HandleBindings",
+				p, constraint)
 		}
 		multi := strings.HasSuffix(name, "...")
 		name = strings.TrimSuffix(name, "...")
