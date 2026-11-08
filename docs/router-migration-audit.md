@@ -191,7 +191,58 @@ must surface the original field names (`book.name`), not `p0`.
 | D7 (GET→HEAD) | B-11 flips to 200 (handler status preserved, no body on wire for real HTTP) |
 | D8 (encoded slashes) | B-13: `%2F` flips to matched with `PathValue == "a/b"`; no double-decoding (`%252F` → `a%2Fb`) |
 
-## 7. Open items / gates
+## 7. Phase 3 spike conclusions
+
+### 7.1 HandleHeader dispatch matrix (D2) — verified
+
+Implemented in `transport/http/server.go` (`dispatch`) and verified by
+`transport/http/header_dispatch_test.go` on go1.27.3. Acceptance used
+status, `Allow`, Transport metadata, the handler that actually ran, and the
+number of handler executions:
+
+| Case | Result |
+|---|---|
+| Header hit, path exists, method allowed for a normal route | header handler runs once, 200; normal route untouched; Transport `http.header` |
+| Header hit, path does not exist | header handler runs once, 200 (path-independent) |
+| Header hit, method disallowed by overlapping normal routes | header handler runs, 200 — D2 rule, not a 405 swallow |
+| Multiple header routes, both values matchable | first registration wins |
+| Cross order (header route registered after normal routes) | header route still wins (priority by design, not order) |
+| Header miss, path exists, method allowed | normal route, one dispatch |
+| Header miss, path exists, method not allowed | native 405 + `Allow`, no handler ran, no second dispatch |
+| Header miss, path missing | 404 |
+| Empty-value condition (`HandleHeader("k", "", h)`) | matches requests without the header (previous gorilla semantics kept) |
+| PathPrefix scope, in-scope request | header dispatch then normal routing both reachable |
+| PathPrefix scope, out-of-scope request with matching header | scope 404; header handler NOT reached |
+| Global filter | runs before selection and sees the initial Transport (`http.unmatched`), per §4.2/D6 |
+
+Known boundary (accepted): the scope mux's own out-of-prefix 404 is the
+stdlib default response — a custom NotFoundHandler does not replace it
+(only in-scope unmatched requests go through the main mux wrapper). The
+same applies to the StrictSlash alias: it resolves against the main mux, so
+it only applies to paths the scope admits.
+
+### 7.2 404/405 replacement wrapper (§8.4/§8.5, D1) — verified
+
+`statusWriter` intercepts only responses the main mux writes itself for an
+unmatched request (`r.Pattern == ""` after `ServeMux.ServeHTTP`, which the
+stdlib resets on every call — verified against the go1.27.3 and go1.25.0
+sources). Matched handlers writing 404/405 themselves are never
+intercepted; redirects pass through untouched. The wrapper implements
+`Flusher`/`Hijacker`/`Unwrap` so WebSocket upgrade and SSE keep working.
+`mux.Handler` is never called to decide the main dispatch; it is called at
+most once, and only for an unmatched request, to resolve the StrictSlash
+alternate path (D5 alias) — a lookup that executes no handler.
+
+### 7.3 Redirect normalization (D5) — verified on go1.27.3
+
+- Exact-route trailing-slash alias: framework-emitted **301** with query
+  preserved (`B-2` probe).
+- ServeMux-native subtree append-slash and duplicate-slash cleaning: passed
+  through unmodified — **307** on go1.27.3 (307 on 1.26.x, 301 on 1.25.x
+  per PRD §11.4); CI must assert per version.
+- Business-handler redirects (Redirector / 307/308) are untouched.
+
+## 8. Open items / gates
 
 - Phase 3 spikes: Header dispatch matrix (R-7), StrictSlash alias +
   normalization (R-8), NotFound/405 wrapper (R-5). Conclusions must be
