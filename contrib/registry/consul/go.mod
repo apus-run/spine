@@ -1,6 +1,6 @@
 module github.com/apus-run/spine/contrib/registry/consul/v3
 
-go 1.26
+go 1.27.3
 
 require (
 	github.com/apus-run/spine/v3 v3.0.0

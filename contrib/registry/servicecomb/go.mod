@@ -1,6 +1,6 @@
 module github.com/apus-run/spine/contrib/registry/servicecomb/v3
 
-go 1.25.0
+go 1.27.3
 
 require (
 	github.com/go-chassis/cari v0.9.0

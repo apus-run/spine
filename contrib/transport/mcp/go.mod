@@ -1,6 +1,6 @@
 module github.com/apus-run/spine/contrib/transport/mcp/v3
 
-go 1.25.5
+go 1.27.3
 
 require (
 	github.com/apus-run/spine/v3 v3.0.0

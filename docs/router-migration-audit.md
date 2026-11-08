@@ -280,5 +280,38 @@ mux. Route-level filters are not available per binding inside an
 aggregated `HandleBindings` registration (generated code never used
 them); group filters apply to the whole pattern.
 
-Remaining gate: the CI matrix (Go 1.25.x / 1.26.x) must pass on the PR,
-including the per-version redirect status assertions (§16.2).
+## 10. Revision: minimum Go version raised to 1.27.3 (supersedes D4)
+
+2026-11-08, after the migration completed, the user raised the minimum Go
+version from 1.25.0 (D4) to **go 1.27.3** across every module in the
+repository (root, cmd/protoc-gen-go-http and all contrib modules), and the
+CI matrix changed from [1.25.x, 1.26.x] to [1.27.x]. D4's rationale (do
+not raise the minimum just for the migration) no longer applies: the
+migration itself needs nothing beyond 1.25, and the raise is a deliberate
+platform decision.
+
+Side effects handled:
+
+- The `go 1.27.3` directive turns on the `go1.27` build tag, which
+  re-triggers the Phase 0 `http2.TrailerPrefix` breakage for modules whose
+  own graphs still pinned `golang.org/x/net v0.54.0`. The same Phase 0 fix
+  (x/net → v0.53.0) was applied to contrib/opensergo,
+  contrib/config/{etcd,polaris} and contrib/registry/{etcd,nacos,polaris}.
+  These modules failed to build under the local 1.27.3 toolchain even
+  before the directive change — the directive only makes the requirement
+  explicit.
+- contrib/registry/kubernetes does not build under go1.27.3: its pinned
+  k8s.io/kube-openapi uses encoding/json v2 experiment APIs
+  (json.SkipFunc, json.DiscardUnknownMembers) that first exist in newer
+  toolchains. This is a pre-existing upstream incompatibility, unchanged
+  by this revision (it failed identically before the bump,
+  GOEXPERIMENT=jsonv2 notwithstanding); it needs a kube-openapi/k8s
+  dependency refresh, tracked separately from the router migration.
+
+Verification: root module build/vet/tests green on go1.27.3; all other
+modules build except contrib/registry/kubernetes as noted.
+
+Remaining gate: the CI matrix (now Go 1.27.x) must pass on the PR. The
+per-version redirect assertions of §16.2 collapse to a single version
+line; the ServeMux-native redirects are expected to be 307 there (the
+301-on-1.25.x branch is retired with the old minimum).

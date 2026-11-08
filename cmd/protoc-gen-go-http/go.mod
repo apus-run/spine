@@ -1,6 +1,6 @@
 module github.com/apus-run/spine/cmd/protoc-gen-go-http/v3
 
-go 1.25.0
+go 1.27.3
 
 require google.golang.org/protobuf v1.36.11
 

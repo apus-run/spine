@@ -1,6 +1,6 @@
 module github.com/apus-run/spine/contrib/config/apollo/v3
 
-go 1.25.0
+go 1.27.3
 
 require (
 	github.com/apolloconfig/agollo/v4 v4.4.0
