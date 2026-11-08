@@ -242,13 +242,43 @@ alternate path (D5 alias) — a lookup that executes no handler.
   per PRD §11.4); CI must assert per version.
 - Business-handler redirects (Redirector / 307/308) are untouched.
 
-## 8. Open items / gates
+## 9. Migration status and user-facing behavior changes
 
-- Phase 3 spikes: Header dispatch matrix (R-7), StrictSlash alias +
-  normalization (R-8), NotFound/405 wrapper (R-5). Conclusions must be
-  appended to this document before the full compatibility implementation.
-- Phase 5 gates: `**` zero/multi-segment + encoding, custom action
-  aggregation across RPCs/services, unknown-action response, §9.4 binding
-  selection timing.
-- CI verification of D4 matrix and per-version redirect codes (§16.2) can
-  only complete in the PR (local toolchain is 1.27.3 only).
+All phases are implemented (commits through the Phase 7 dependency
+cleanup). Local verification on go1.27.3: `go build ./...`, `go vet ./...`,
+`go test ./...`, `go test -race ./...` pass for the root module; the
+generator module and every nested contrib module build, vet and test
+green. The same checks pass with the go1.25.0 and go1.26.0 toolchains for
+the root module (D4 matrix; CI must still confirm on its runners).
+`BenchmarkServer` shows no regression versus the pre-migration engine
+(≈92–97 µs/op vs ≈95–99 µs/op, 400 iterations × 3).
+
+Behavior changes visible to Spine users, all grounded in accepted
+decisions or recorded audit items:
+
+| Change | Old (Gorilla) | New (ServeMux) | Source |
+|---|---|---|---|
+| Method mismatch | 404 | 405 + `Allow` (custom handler keeps status/`Allow`) | D1 |
+| HEAD on GET route | 404 | 200 (stdlib GET→HEAD) | D7 |
+| Encoded slash `%2F` in a segment | 404 | matches; `PathValue` decodes once (`a/b`) | D8 |
+| Prefix matching | string prefix (`/api` hits `/apiary`) | segment boundary | D3 |
+| Exact-route trailing slash | 301 (StrictSlash) | 301 via framework alias, query preserved (ServeMux-native redirects unchanged: 301 on Go 1.25.x, 307 on 1.26+) | D5 |
+| Header routes vs normal routes | registration-order competition | header dispatch always first (per D2 matrix) | D2 |
+| Unmatched requests | no Transport/timeout | Transport with `http.unmatched` + timeout context | D6 |
+| Default 404 | via `http.DefaultServeMux` | private handling (custom NotFoundHandler honored) | B-10 |
+| Duplicate registration | first wins silently | panic at init | §14.4 |
+| Regex var constraints (`{id:[0-9]+}`) | enforced | dropped — `{id}` matches any single segment; registration-time rejection only for multi-segment constraints | R-6 |
+| Root-path patterns (`GET /`) | exact `/` only | stdlib subtree semantics (catches every GET path) | stdlib semantics |
+| Generator patterns (`{name=messages/**}` etc.) | Gorilla regex vars | `{p0...}` + literal prefix re-attached at binding; actions dispatch locally on the last `:` | §12 |
+| Unknown custom action / missing binding | 404 (regex miss) | 404 (dispatch miss; does not go through custom NotFoundHandler) | §12.6 decision |
+| `Router.Handle` with empty method | never matched | panics at registration ("*" still matches all) | R-3 |
+
+Known boundaries (accepted, see §7.1): the PathPrefix scope mux's
+out-of-prefix 404 is the stdlib default body and is not replaced by a
+custom NotFoundHandler; the StrictSlash alias resolves against the main
+mux. Route-level filters are not available per binding inside an
+aggregated `HandleBindings` registration (generated code never used
+them); group filters apply to the whole pattern.
+
+Remaining gate: the CI matrix (Go 1.25.x / 1.26.x) must pass on the PR,
+including the per-version redirect status assertions (§16.2).
