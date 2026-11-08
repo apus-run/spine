@@ -1,9 +1,9 @@
-module github.com/go-kratos/kratos/contrib/middleware/oauth2/v3
+module github.com/apus-run/spine/contrib/middleware/oauth2/v3
 
 go 1.25.0
 
 require (
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.81.0
 )
@@ -23,4 +23,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../..
+replace github.com/apus-run/spine/v3 => ../../..

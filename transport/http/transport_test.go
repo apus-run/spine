@@ -7,7 +7,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 func TestTransport_Kind(t *testing.T) {
@@ -95,9 +95,9 @@ func TestHeaderCarrier_Keys(t *testing.T) {
 func TestSetOperation(t *testing.T) {
 	tr := &Transport{}
 	ctx := transport.NewServerContext(context.Background(), tr)
-	SetOperation(ctx, "kratos")
-	if !reflect.DeepEqual(tr.operation, "kratos") {
-		t.Errorf("expect %v, got %v", "kratos", tr.operation)
+	SetOperation(ctx, "spine")
+	if !reflect.DeepEqual(tr.operation, "spine") {
+		t.Errorf("expect %v, got %v", "spine", tr.operation)
 	}
 }
 

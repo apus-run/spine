@@ -9,7 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/registry"
 )
 
 var (
@@ -78,7 +78,7 @@ type discoveryInstance struct {
 	Status   int64             `json:"status"` // Status instance status, eg: 1UP 2Waiting
 }
 
-const _reservedInstanceIDKey = "kratos.v2.serviceinstance.id"
+const _reservedInstanceIDKey = "spine.v2.serviceinstance.id"
 
 // fromServerInstance convert registry.ServiceInstance into discoveryInstance
 func fromServerInstance(ins *registry.ServiceInstance, config *Config) *discoveryInstance {

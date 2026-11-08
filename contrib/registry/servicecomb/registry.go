@@ -11,8 +11,8 @@ import (
 	"github.com/go-chassis/sc-client"
 	"github.com/gofrs/uuid"
 
-	"github.com/go-kratos/kratos/v3/log"
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/registry"
 )
 
 func init() {
@@ -39,7 +39,7 @@ const (
 	envKey           = "environment"
 	envVar           = "CAS_ENVIRONMENT_ID"
 	appIDVar         = "CAS_APPLICATION_NAME"
-	frameWorkName    = "kratos"
+	frameWorkName    = "spine"
 	frameWorkVersion = "v2"
 )
 

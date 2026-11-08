@@ -7,12 +7,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"github.com/go-kratos/kratos/v3/config"
+	"github.com/apus-run/spine/v3/config"
 )
 
-const testPath = "kratos/test/config"
+const testPath = "spine/test/config"
 
-const testKey = "kratos/test/config/key"
+const testKey = "spine/test/config/key"
 
 func TestConfig(t *testing.T) {
 	client, err := api.NewClient(&api.Config{
@@ -72,7 +72,7 @@ func TestExtToFormat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tp := "kratos/test/ext"
+	tp := "spine/test/ext"
 	tn := "a.bird.json"
 	tk := tp + "/" + tn
 	tc := `{"a":1}`

@@ -37,13 +37,13 @@ If the maintainer team members have major differences on a requirement, the fina
 ### What problem is the feature used to solve?
 <!--
 example:
-    We hope to add event interface to Kratos framework to access middleware such as Kafka and rabbitmq
+    We hope to add event interface to Spine framework to access middleware such as Kafka and rabbitmq
 -->
 
 ### Requirements description of the feature
 <!--
 example:
-    The event interface should be added to Kratos. The interface should contain subscribers and publishers, and the message body should contain key value head
+    The event interface should be added to Spine. The interface should contain subscribers and publishers, and the message body should contain key value head
 -->
 
 ### References

@@ -1,9 +1,9 @@
-module github.com/go-kratos/kratos/contrib/registry/consul/v3
+module github.com/apus-run/spine/contrib/registry/consul/v3
 
 go 1.26
 
 require (
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	github.com/hashicorp/consul/api v1.34.2
 )
 
@@ -27,4 +27,4 @@ require (
 	golang.org/x/sys v0.44.0 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../../
+replace github.com/apus-run/spine/v3 => ../../../

@@ -11,11 +11,11 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
-	kerrors "github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/middleware/selector"
-	"github.com/go-kratos/kratos/v3/transport/grpc"
-	khttp "github.com/go-kratos/kratos/v3/transport/http"
+	kerrors "github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/middleware/selector"
+	"github.com/apus-run/spine/v3/transport/grpc"
+	khttp "github.com/apus-run/spine/v3/transport/http"
 )
 
 const testAccessToken = "e2e-token"
@@ -150,7 +150,7 @@ func TestGRPCEndToEnd(t *testing.T) {
 	if err := check(Client(testTokenSource(tokenSrv.URL).TokenSource(ctx))); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// The client receives a gRPC status, convert it back to a kratos error.
+	// The client receives a gRPC status, convert it back to a spine error.
 	if se := kerrors.FromError(check()); se == nil || se.Reason != ErrMissingToken.Reason {
 		t.Fatalf("anonymous: err = %v, want %v", se, ErrMissingToken)
 	}

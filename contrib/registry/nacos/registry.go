@@ -14,10 +14,10 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/registry"
 )
 
-var ErrServiceInstanceNameEmpty = errors.New("kratos/nacos: ServiceInstance.Name can not be empty")
+var ErrServiceInstanceNameEmpty = errors.New("spine/nacos: ServiceInstance.Name can not be empty")
 
 const (
 	defaultKind = "grpc"

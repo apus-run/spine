@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	kerrors "github.com/go-kratos/kratos/v3/errors"
+	kerrors "github.com/apus-run/spine/v3/errors"
 )
 
 func newIntrospectionServer(t *testing.T, calls *atomic.Int32) *httptest.Server {

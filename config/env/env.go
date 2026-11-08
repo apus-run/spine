@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-kratos/kratos/v3/config"
+	"github.com/apus-run/spine/v3/config"
 )
 
 type env struct {

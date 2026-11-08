@@ -17,12 +17,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/internal/matcher"
-	pb "github.com/go-kratos/kratos/v3/internal/testdata/helloworld"
-	"github.com/go-kratos/kratos/v3/log"
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/internal/matcher"
+	pb "github.com/apus-run/spine/v3/internal/testdata/helloworld"
+	"github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 // server is used to implement helloworld.GreeterServer.
@@ -139,13 +139,13 @@ func testClient(t *testing.T, srv *Server) {
 		t.Fatal(err)
 	}
 	client := pb.NewGreeterClient(conn)
-	reply, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "kratos"})
+	reply, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "spine"})
 	t.Log(err)
 	if err != nil {
 		t.Errorf("failed to call: %v", err)
 	}
-	if !reflect.DeepEqual(reply.Message, "Hello kratos") {
-		t.Errorf("expect %s, got %s", "Hello kratos", reply.Message)
+	if !reflect.DeepEqual(reply.Message, "Hello spine") {
+		t.Errorf("expect %s, got %s", "Hello spine", reply.Message)
 	}
 
 	streamCli, err := client.SayHelloStream(context.Background())

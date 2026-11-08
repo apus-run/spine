@@ -8,7 +8,7 @@ import (
 	"github.com/go-chassis/sc-client"
 	"github.com/gofrs/uuid"
 
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/registry"
 )
 
 var r *Registry
@@ -27,7 +27,7 @@ func (receiver *mockClient) WatchMicroService(_ string, _ func(*sc.MicroServiceI
 func (receiver *mockClient) FindMicroServiceInstances(_,
 	_, microServiceName, _ string, _ ...sc.CallOption,
 ) ([]*pb.MicroServiceInstance, error) {
-	if microServiceName == "KratosServicecomb" {
+	if microServiceName == "SpineServicecomb" {
 		return []*pb.MicroServiceInstance{{}}, nil
 	}
 	return nil, nil
@@ -59,9 +59,9 @@ func TestRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := &registry.ServiceInstance{
-		Name:      "KratosServicecomb",
+		Name:      "SpineServicecomb",
 		Version:   "0.0.1",
-		Metadata:  map[string]string{"app": "kratos"},
+		Metadata:  map[string]string{"app": "spine"},
 		Endpoints: []string{"tcp://127.0.0.1:9000?isSecure=false"},
 		ID:        instanceID.String(),
 	}
@@ -99,7 +99,7 @@ func TestWatcher(t *testing.T) {
 	svc1 := &registry.ServiceInstance{
 		Name:      "WatcherTest",
 		Version:   "0.0.1",
-		Metadata:  map[string]string{"app": "kratos"},
+		Metadata:  map[string]string{"app": "spine"},
 		Endpoints: []string{"tcp://127.0.0.1:9000?isSecure=false"},
 		ID:        instanceID1.String(),
 	}

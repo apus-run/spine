@@ -8,9 +8,9 @@ import (
 	apolloconfig "github.com/apolloconfig/agollo/v4/env/config"
 	"github.com/apolloconfig/agollo/v4/extension"
 
-	"github.com/go-kratos/kratos/v3/config"
-	"github.com/go-kratos/kratos/v3/encoding"
-	"github.com/go-kratos/kratos/v3/log"
+	"github.com/apus-run/spine/v3/config"
+	"github.com/apus-run/spine/v3/encoding"
+	"github.com/apus-run/spine/v3/log"
 )
 
 type apollo struct {

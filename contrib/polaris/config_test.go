@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v3/config"
+	"github.com/apus-run/spine/v3/config"
 
 	"github.com/polarismesh/polaris-go"
 )
@@ -198,7 +198,7 @@ func (client *configClient) publishConfigFile(name string) error {
 }
 
 func TestConfig(t *testing.T) {
-	name := "kratos-polaris-test.yaml"
+	name := "spine-polaris-test.yaml"
 	client, err := newConfigClient()
 	if err != nil {
 		t.Fatal(err)
@@ -270,7 +270,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestExtToFormat(t *testing.T) {
-	name := "kratos-polaris-ext.yaml"
+	name := "spine-polaris-ext.yaml"
 	client, err := newConfigClient()
 	if err != nil {
 		t.Fatal(err)
@@ -323,7 +323,7 @@ func TestGetMultipleConfig(t *testing.T) {
 	client, err := newConfigClient()
 	files := make([]File, 0, 3)
 	for i := 0; i < 3; i++ {
-		name := fmt.Sprintf("kratos-polaris-test-%d.yaml", i)
+		name := fmt.Sprintf("spine-polaris-test-%d.yaml", i)
 		if err != nil {
 			t.Fatal(err)
 		}

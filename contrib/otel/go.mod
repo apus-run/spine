@@ -1,9 +1,9 @@
-module github.com/go-kratos/kratos/contrib/otel/v3
+module github.com/apus-run/spine/contrib/otel/v3
 
 go 1.25.0
 
 require (
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.18.0
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/log v0.19.0
@@ -35,4 +35,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../
+replace github.com/apus-run/spine/v3 => ../../

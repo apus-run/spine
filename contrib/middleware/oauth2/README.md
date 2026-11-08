@@ -1,9 +1,9 @@
 # OAuth2 Middleware
 
-OAuth2 bearer token middleware for kratos, built on [golang.org/x/oauth2](https://pkg.go.dev/golang.org/x/oauth2). Works with both HTTP and gRPC transports.
+OAuth2 bearer token middleware for spine, built on [golang.org/x/oauth2](https://pkg.go.dev/golang.org/x/oauth2). Works with both HTTP and gRPC transports.
 
 ```shell
-go get github.com/go-kratos/kratos/contrib/middleware/oauth2/v3
+go get github.com/apus-run/spine/v3
 ```
 
 ## Client
@@ -14,7 +14,7 @@ go get github.com/go-kratos/kratos/contrib/middleware/oauth2/v3
 import (
 	"golang.org/x/oauth2/clientcredentials"
 
-	oauth2mw "github.com/go-kratos/kratos/contrib/middleware/oauth2/v3"
+	oauth2mw "github.com/apus-run/spine/v3"
 )
 
 cfg := &clientcredentials.Config{

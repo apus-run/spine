@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/go-kratos/kratos/v3/errors"
+	"github.com/apus-run/spine/v3/errors"
 )
 
 // Tracer is otel span tracer
@@ -25,7 +25,7 @@ type Tracer struct {
 func NewTracer(kind trace.SpanKind, opts ...Option) *Tracer {
 	op := options{
 		propagator: propagation.NewCompositeTextMapPropagator(Metadata{}, propagation.Baggage{}, propagation.TraceContext{}),
-		tracerName: "kratos",
+		tracerName: "spine",
 	}
 	for _, o := range opts {
 		o(&op)

@@ -3,7 +3,7 @@ package zookeeper
 import (
 	"encoding/json"
 
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/registry"
 )
 
 func marshal(si *registry.ServiceInstance) ([]byte, error) {

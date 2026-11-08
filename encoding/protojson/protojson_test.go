@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	testData "github.com/go-kratos/kratos/v3/internal/testdata/encoding"
+	testData "github.com/apus-run/spine/v3/internal/testdata/encoding"
 )
 
 func TestName(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCodec(t *testing.T) {
 	c := new(codec)
 	model := testData.TestModel{
 		Id:    1,
-		Name:  "go-kratos",
+		Name:  "spine",
 		Hobby: []string{"1", "2"},
 	}
 
@@ -27,12 +27,12 @@ func TestCodec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
-	if got, want := strings.ReplaceAll(string(data), " ", ""), `{"id":"1","name":"go-kratos","hobby":["1","2"],"attrs":{}}`; got != want {
+	if got, want := strings.ReplaceAll(string(data), " ", ""), `{"id":"1","name":"spine","hobby":["1","2"],"attrs":{}}`; got != want {
 		t.Errorf("Marshal() = %s, want %s", got, want)
 	}
 
 	var out testData.TestModel
-	if err := c.Unmarshal([]byte(`{"id":"1","name":"go-kratos","hobby":["1","2"],"unknown":"discarded"}`), &out); err != nil {
+	if err := c.Unmarshal([]byte(`{"id":"1","name":"spine","hobby":["1","2"],"unknown":"discarded"}`), &out); err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
 	if !reflect.DeepEqual(out.Id, model.Id) {

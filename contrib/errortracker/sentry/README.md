@@ -1,4 +1,4 @@
-# Sentry middleware for Kratos
+# Sentry middleware for Spine
 This middleware helps you to catch panics and report them to [sentry](https://sentry.io/)
 
 ## Quick Start
@@ -18,8 +18,8 @@ sentry.Init(sentry.ClientOptions{
 import (
 	"context"
 
-	ksentry "github.com/go-kratos/kratos/contrib/errortracker/sentry/v3"
-	"github.com/go-kratos/kratos/contrib/otel/v3/tracing"
+	ksentry "github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3/tracing"
 )
 
 // for HTTP server, new HTTP server with sentry middleware options

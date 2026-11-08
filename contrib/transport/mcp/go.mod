@@ -1,9 +1,9 @@
-module github.com/go-kratos/kratos/contrib/transport/mcp/v3
+module github.com/apus-run/spine/contrib/transport/mcp/v3
 
 go 1.25.5
 
 require (
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	github.com/mark3labs/mcp-go v0.54.0
 )
 
@@ -20,4 +20,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../../
+replace github.com/apus-run/spine/v3 => ../../../

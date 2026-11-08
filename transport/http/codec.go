@@ -12,9 +12,9 @@ import (
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/go-kratos/kratos/v3/encoding"
-	"github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/internal/httputil"
+	"github.com/apus-run/spine/v3/encoding"
+	"github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/internal/httputil"
 )
 
 // SupportPackageIsVersion3 These constants should not be referenced from any other code.

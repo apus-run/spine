@@ -1,11 +1,11 @@
-module github.com/go-kratos/kratos/contrib/middleware/validate/v3
+module github.com/apus-run/spine/contrib/middleware/validate/v3
 
 go 1.25.0
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -24,4 +24,4 @@ require (
 	google.golang.org/grpc v1.81.0 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../../
+replace github.com/apus-run/spine/v3 => ../../../

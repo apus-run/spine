@@ -1,5 +1,5 @@
 version: v1
-name: buf.build/kratos/apis
+name: buf.build/apus-run/apis
 breaking:
   use:
     - FILE

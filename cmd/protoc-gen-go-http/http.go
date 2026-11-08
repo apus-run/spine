@@ -17,13 +17,13 @@ import (
 
 const (
 	contextPackage       = protogen.GoImportPath("context")
-	transportHTTPPackage = protogen.GoImportPath("github.com/go-kratos/kratos/v3/transport/http")
+	transportHTTPPackage = protogen.GoImportPath("github.com/apus-run/spine/v3/transport/http")
 	httpBodyFullName     = protoreflect.FullName("google.api.HttpBody")
 )
 
 var methodSets = make(map[string]int)
 
-// generateFile generates a _http.pb.go file containing kratos errors definitions.
+// generateFile generates a _http.pb.go file containing spine errors definitions.
 func generateFile(gen *protogen.Plugin, file *protogen.File, omitempty bool, omitemptyPrefix string) *protogen.GeneratedFile {
 	if len(file.Services) == 0 || (omitempty && !hasHTTPRule(file.Services)) {
 		return nil
@@ -46,13 +46,13 @@ func generateFile(gen *protogen.Plugin, file *protogen.File, omitempty bool, omi
 	return g
 }
 
-// generateFileContent generates the kratos errors definitions, excluding the package statement.
+// generateFileContent generates the spine errors definitions, excluding the package statement.
 func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile, omitempty bool, omitemptyPrefix string) {
 	if len(file.Services) == 0 {
 		return
 	}
 	g.P("// This is a compile-time assertion to ensure that this generated file")
-	g.P("// is compatible with the kratos package it is being compiled against.")
+	g.P("// is compatible with the spine package it is being compiled against.")
 	g.P("var _ = new(", contextPackage.Ident("Context"), ")")
 	g.P("const _ = ", transportHTTPPackage.Ident("SupportPackageIsVersion3"))
 	g.P()

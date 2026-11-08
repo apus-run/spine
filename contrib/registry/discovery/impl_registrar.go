@@ -9,8 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/go-kratos/kratos/v3/log"
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/registry"
 )
 
 func (d *Discovery) Register(ctx context.Context, service *registry.ServiceInstance) (err error) {

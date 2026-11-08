@@ -8,7 +8,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/go-kratos/kratos/v3/config"
+	"github.com/apus-run/spine/v3/config"
 )
 
 var _ config.Watcher = (*watcher)(nil)

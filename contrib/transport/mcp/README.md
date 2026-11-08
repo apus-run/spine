@@ -1,13 +1,13 @@
 # MCP Transport
 
-This module implements the MCP server in Kratos based on mcp-go.
+This module implements the MCP server in Spine based on mcp-go.
 
-[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/go-kratos/kratos/contrib/transport/mcp/v3)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/apus-run/spine/v3)
 
 ## Quick start
 ```go
 import(
-    tm "github.com/go-kratos/kratos/contrib/transport/mcp/v3"
+    tm "github.com/apus-run/spine/v3"
     mcp "github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -30,7 +30,7 @@ func Health(next http.Handler) http.Handler {
 }
 
 func main() {
-    srv := tm.NewServer("kratos-mcp", "v1.0.0", tm.Address(":8000"), tm.Middleware(Health))
+    srv := tm.NewServer("spine-mcp", "v1.0.0", tm.Address(":8000"), tm.Middleware(Health))
     tool := mcp.NewTool("hello_world",
         mcp.WithDescription("Say hello to someone"),
         mcp.WithString("name",
@@ -40,10 +40,10 @@ func main() {
     )
     // Add tool handler
     srv.AddTool(tool, helloHandler)
-    // creates a kratos application
-    app := kratos.New(
-        kratos.Name("kratos-app"),
-        kratos.Server(srv),
+    // creates a spine application
+    app := spine.New(
+        spine.Name("spine-app"),
+        spine.Server(srv),
     )
     if err := app.Run(); err != nil {
         panic(err)

@@ -8,15 +8,15 @@ set -o errexit
 
 echo "Resolving modules in $(pwd)"
 
-KRATOS_HOME=$(
+SPINE_HOME=$(
 	cd "$(dirname "${BASH_SOURCE[0]}")" &&
 		cd .. &&
 		pwd
 )
 
-source "${KRATOS_HOME}/hack/util.sh"
+source "${SPINE_HOME}/hack/util.sh"
 
-FAILURE_FILE=${KRATOS_HOME}/hack/.lintcheck_failures
+FAILURE_FILE=${SPINE_HOME}/hack/.lintcheck_failures
 
 all_modules=$(util::find_modules)
 failing_modules=()

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v3/registry"
-	"github.com/go-kratos/kratos/v3/selector"
+	"github.com/apus-run/spine/v3/registry"
+	"github.com/apus-run/spine/v3/selector"
 )
 
 func TestParseTarget(t *testing.T) {
@@ -108,7 +108,7 @@ func (m *mockWatch) Next() ([]*registry.ServiceInstance, error) {
 	m.count++
 	instance := &registry.ServiceInstance{
 		ID:        "1",
-		Name:      "kratos",
+		Name:      "spine",
 		Version:   "v1",
 		Metadata:  map[string]string{},
 		Endpoints: []string{fmt.Sprintf("http://127.0.0.1:9001?isSecure=%s", strconv.FormatBool(m.isSecure))},

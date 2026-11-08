@@ -33,7 +33,7 @@ log.InfoContext(ctx, "user created", "user_id", userID)
 ### Builder
 
 `log.NewHandler` builds a default handler. `log.NewLogger` wraps an existing
-handler with Kratos decorators. Attach fixed service attrs with `logger.With`.
+handler with Spine decorators. Attach fixed service attrs with `logger.With`.
 
 ```go
 logger := log.NewLogger(
@@ -63,23 +63,23 @@ log.InfoContext(ctx, "handling request")
 
 ```go
 import (
-	otel "github.com/go-kratos/kratos/contrib/otel/v3/log"
-	"github.com/go-kratos/kratos/v3/log"
+	otel "github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/log"
 )
 
 logger := log.NewLogger(otel.NewHandler("helloworld"))
 log.SetDefault(logger)
 ```
 
-The `github.com/go-kratos/kratos/contrib/otel/v3/log` handler bridges slog records to
-OpenTelemetry Logs. Use the core log builder when you need Kratos logger options:
+The `github.com/apus-run/spine/v3/log` handler bridges slog records to
+OpenTelemetry Logs. Use the core log builder when you need Spine logger options:
 
 ```go
 import (
 	"log/slog"
 
-	otel "github.com/go-kratos/kratos/contrib/otel/v3/log"
-	"github.com/go-kratos/kratos/v3/log"
+	otel "github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/log"
 )
 
 logger := log.NewLogger(

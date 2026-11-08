@@ -1,4 +1,4 @@
-package kratos
+package spine
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v3/registry"
-	"github.com/go-kratos/kratos/v3/transport/grpc"
-	"github.com/go-kratos/kratos/v3/transport/http"
+	"github.com/apus-run/spine/v3/registry"
+	"github.com/apus-run/spine/v3/transport/grpc"
+	"github.com/apus-run/spine/v3/transport/http"
 )
 
 type mockRegistry struct {
@@ -44,7 +44,7 @@ func TestApp(t *testing.T) {
 	hs := http.NewServer()
 	gs := grpc.NewServer()
 	app := New(
-		Name("kratos"),
+		Name("spine"),
 		Version("v1.0.0"),
 		Server(hs, gs),
 		BeforeStart(func(_ context.Context) error {
@@ -138,7 +138,7 @@ func TestApp_buildInstance(t *testing.T) {
 		endpoints []string
 	}{
 		id:      "1",
-		name:    "kratos",
+		name:    "spine",
 		version: "v1.0.0",
 		metadata: map[string]string{
 			"a": "1",
@@ -200,7 +200,7 @@ func TestApp_Context(t *testing.T) {
 	tests := []fields{
 		{
 			id:       "1",
-			name:     "kratos-v1",
+			name:     "spine-v1",
 			instance: &registry.ServiceInstance{Endpoints: []string{"https://go-kratos.dev", "localhost"}},
 			metadata: map[string]string{},
 			version:  "v1",
@@ -211,15 +211,15 @@ func TestApp_Context(t *testing.T) {
 				endpoint []string
 				metadata map[string]string
 			}{
-				id: "1", version: "v1", name: "kratos-v1", endpoint: []string{"https://go-kratos.dev", "localhost"},
+				id: "1", version: "v1", name: "spine-v1", endpoint: []string{"https://go-kratos.dev", "localhost"},
 				metadata: map[string]string{},
 			},
 		},
 		{
 			id:       "2",
-			name:     "kratos-v2",
+			name:     "spine-v2",
 			instance: &registry.ServiceInstance{Endpoints: []string{"test"}},
-			metadata: map[string]string{"kratos": "https://github.com/go-kratos/kratos"},
+			metadata: map[string]string{"spine": "https://github.com/apus-run/spine/v3"},
 			version:  "v2",
 			want: struct {
 				id       string
@@ -228,13 +228,13 @@ func TestApp_Context(t *testing.T) {
 				endpoint []string
 				metadata map[string]string
 			}{
-				id: "2", version: "v2", name: "kratos-v2", endpoint: []string{"test"},
-				metadata: map[string]string{"kratos": "https://github.com/go-kratos/kratos"},
+				id: "2", version: "v2", name: "spine-v2", endpoint: []string{"test"},
+				metadata: map[string]string{"spine": "https://github.com/apus-run/spine/v3"},
 			},
 		},
 		{
 			id:       "3",
-			name:     "kratos-v3",
+			name:     "spine-v3",
 			instance: nil,
 			metadata: make(map[string]string),
 			version:  "v3",
@@ -245,7 +245,7 @@ func TestApp_Context(t *testing.T) {
 				endpoint []string
 				metadata map[string]string
 			}{
-				id: "3", version: "v3", name: "kratos-v3", endpoint: nil,
+				id: "3", version: "v3", name: "spine-v3", endpoint: nil,
 				metadata: map[string]string{},
 			},
 		},

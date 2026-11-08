@@ -12,8 +12,8 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 
-	"github.com/go-kratos/kratos/contrib/registry/nacos/v3"
-	"github.com/go-kratos/kratos/v3"
+	"github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3"
 )
 
 func main() {
@@ -34,9 +34,9 @@ func main() {
 	r := nacos.New(client)
 
 	// server
-	app := kratos.New(
-		kratos.Name("helloworld"),
-		kratos.Registrar(r),
+	app := spine.New(
+		spine.Name("helloworld"),
+		spine.Registrar(r),
 	)
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
@@ -55,8 +55,8 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 
-	"github.com/go-kratos/kratos/contrib/registry/nacos/v3"
-	"github.com/go-kratos/kratos/v3/transport/grpc"
+	"github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3/transport/grpc"
 )
 
 func main() {

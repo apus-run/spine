@@ -3,9 +3,9 @@ package ratelimit
 import (
 	"context"
 
-	"github.com/go-kratos/kratos/v3/errors"
-	internalratelimit "github.com/go-kratos/kratos/v3/internal/ratelimit"
-	"github.com/go-kratos/kratos/v3/middleware"
+	"github.com/apus-run/spine/v3/errors"
+	internalratelimit "github.com/apus-run/spine/v3/internal/ratelimit"
+	"github.com/apus-run/spine/v3/middleware"
 )
 
 // ErrLimitExceed is service unavailable due to rate limit exceeded.

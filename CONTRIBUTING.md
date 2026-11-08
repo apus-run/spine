@@ -1,4 +1,4 @@
-The kratos community wants to be helped by a wide range of developers, so you'd like to take a few minutes to read this guide before you mention the problem or pull request.
+The spine community wants to be helped by a wide range of developers, so you'd like to take a few minutes to read this guide before you mention the problem or pull request.
 
 ## Reporting Bug or Fixing Bugs
 We use GitHub issues to manage issues. If you want to submit , first make sure you've searched for existing issues, pull requests and read our [FAQ](https://go-kratos.dev/docs/intro/faq).
@@ -111,7 +111,7 @@ BREAKING CHANGE:
 ```
 ## Release
 
-You can use `kratos changelog dev` to generate a change log during.
+You can use `spine changelog dev` to generate a change log during.
 
 The following is the list of supported types:
 

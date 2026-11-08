@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 var _ transport.Transporter = (*Transport)(nil)
@@ -90,8 +90,8 @@ func TestMatch(t *testing.T) {
 			ctx:  transport.NewServerContext(context.Background(), &Transport{operation: "/test/1234"}),
 		},
 		{
-			name: "/example/kratos",
-			ctx:  transport.NewServerContext(context.Background(), &Transport{operation: "/example/kratos"}),
+			name: "/example/spine",
+			ctx:  transport.NewServerContext(context.Background(), &Transport{operation: "/example/spine"}),
 		},
 	}
 	for _, test := range tests {
@@ -101,7 +101,7 @@ func TestMatch(t *testing.T) {
 				return "reply", nil
 			}
 			next = Server(testMiddleware).Prefix("/hello/").Regex(`/test/[0-9]+`).
-				Path("/example/kratos").Build()(next)
+				Path("/example/spine").Build()(next)
 			_, _ = next(test.ctx, test.name)
 		})
 	}
@@ -126,8 +126,8 @@ func TestMatchClient(t *testing.T) {
 			ctx:  transport.NewClientContext(context.Background(), &Transport{operation: "/test/1234"}),
 		},
 		{
-			name: "/example/kratos",
-			ctx:  transport.NewClientContext(context.Background(), &Transport{operation: "/example/kratos"}),
+			name: "/example/spine",
+			ctx:  transport.NewClientContext(context.Background(), &Transport{operation: "/example/spine"}),
 		},
 	}
 	for _, test := range tests {
@@ -137,7 +137,7 @@ func TestMatchClient(t *testing.T) {
 				return "reply", nil
 			}
 			next = Client(testMiddleware).Prefix("/hello/").Regex(`/test/[0-9]+`).
-				Path("/example/kratos").Build()(next)
+				Path("/example/spine").Build()(next)
 			_, _ = next(test.ctx, test.name)
 		})
 	}
@@ -204,7 +204,7 @@ func TestHeaderFunc(t *testing.T) {
 			name: "/hi.Create/world",
 			ctx: transport.NewServerContext(context.Background(), &Transport{
 				operation: "/hi.Create/world",
-				headers:   &mockHeader{map[string][]string{"X-Test": {"test2"}, "go-kratos": {"kratos"}}},
+				headers:   &mockHeader{map[string][]string{"X-Test": {"test2"}, "spine": {"spine"}}},
 			}),
 		},
 		{
@@ -236,7 +236,7 @@ func TestHeaderFunc(t *testing.T) {
 				if tr.RequestHeader().Get("X-Test") == "test" {
 					return true
 				}
-				if tr.RequestHeader().Get("go-kratos") == "kratos" {
+				if tr.RequestHeader().Get("spine") == "spine" {
 					return true
 				}
 				return false

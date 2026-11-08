@@ -1,6 +1,6 @@
 ---
 name: "\U0001F680 Question"
-about: Ask a question about Kratos.
+about: Ask a question about Spine.
 title: "[Question]"
 labels: question
 assignees: ''

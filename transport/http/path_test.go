@@ -7,8 +7,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"github.com/go-kratos/kratos/v3/internal/testdata/binding"
-	"github.com/go-kratos/kratos/v3/internal/testdata/complex"
+	"github.com/apus-run/spine/v3/internal/testdata/binding"
+	"github.com/apus-run/spine/v3/internal/testdata/complex"
 )
 
 func TestBuildPath(t *testing.T) {
@@ -22,29 +22,29 @@ func TestBuildPath(t *testing.T) {
 		{
 			name:         "path",
 			pathTemplate: "/helloworld/{name}",
-			request:      &binding.HelloRequest{Name: "kratos"},
-			want:         "/helloworld/kratos",
+			request:      &binding.HelloRequest{Name: "spine"},
+			want:         "/helloworld/spine",
 		},
 		{
 			name:         "query",
 			pathTemplate: "/helloworld/{name}",
-			request:      &binding.HelloRequest{Name: "kratos", Sub: &binding.Sub{Name: "go"}},
+			request:      &binding.HelloRequest{Name: "spine", Sub: &binding.Sub{Name: "go"}},
 			opts:         []BuildPathOption{WithQueryParams()},
-			want:         "/helloworld/kratos?sub.naming=go",
+			want:         "/helloworld/spine?sub.naming=go",
 		},
 		{
 			name:         "resource name",
 			pathTemplate: "/v1/{name=publishers/*/books/*}",
-			request:      &binding.HelloRequest{Name: "publishers/go/books/kratos"},
+			request:      &binding.HelloRequest{Name: "publishers/go/books/spine"},
 			opts:         []BuildPathOption{WithQueryParams()},
-			want:         "/v1/publishers/go/books/kratos",
+			want:         "/v1/publishers/go/books/spine",
 		},
 		{
 			name:         "omit body field query params",
 			pathTemplate: "/helloworld/{name}",
-			request:      &binding.HelloRequest{Name: "kratos", Sub: &binding.Sub{Name: "go"}},
+			request:      &binding.HelloRequest{Name: "spine", Sub: &binding.Sub{Name: "go"}},
 			opts:         []BuildPathOption{WithQueryParams(), WithOmitFields("sub")},
-			want:         "/helloworld/kratos",
+			want:         "/helloworld/spine",
 		},
 	}
 
@@ -92,9 +92,9 @@ func TestBuildPathFieldNames(t *testing.T) {
 		},
 		{
 			name: "omit proto field", template: "/items",
-			request: &binding.HelloRequest{Name: "kratos", OptString: proto.String("body")},
+			request: &binding.HelloRequest{Name: "spine", OptString: proto.String("body")},
 			opts:    []BuildPathOption{WithOmitFields("opt_string")},
-			want:    "/items?name=kratos",
+			want:    "/items?name=spine",
 		},
 		{
 			name: "omit nested proto field", template: "/items",
@@ -104,9 +104,9 @@ func TestBuildPathFieldNames(t *testing.T) {
 		},
 		{
 			name: "omit custom JSON parent", template: "/items",
-			request: &complex.Complex{NoOne: "kratos", Simple: &complex.Simple{Component: "body"}},
+			request: &complex.Complex{NoOne: "spine", Simple: &complex.Simple{Component: "body"}},
 			opts:    []BuildPathOption{WithOmitFields("simple")},
-			want:    "/items?numberOne=kratos",
+			want:    "/items?numberOne=spine",
 		},
 		{
 			name: "struct", template: "/items/{resource_id}",
@@ -155,7 +155,7 @@ func TestBuildPathEscapesValues(t *testing.T) {
 
 func TestBuildPathPreservesFieldMask(t *testing.T) {
 	request := &binding.HelloRequest{
-		Name:       "kratos",
+		Name:       "spine",
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"opt_string", "sub.name"}},
 	}
 	for _, opts := range [][]BuildPathOption{nil, {WithQueryParams()}, {WithQueryParams(), WithOmitFields("update_mask")}} {
@@ -219,66 +219,66 @@ func TestBuildPathCompatibility(t *testing.T) {
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/{name}/sub",
-			request:      &binding.HelloRequest{Name: "go", Sub: &binding.Sub{Name: "kratos"}},
+			request:      &binding.HelloRequest{Name: "go", Sub: &binding.Sub{Name: "spine"}},
 			opts:         []BuildPathOption{WithQueryParams()},
-			want:         "http://helloworld.Greeter/helloworld/go/sub?sub.naming=kratos",
+			want:         "http://helloworld.Greeter/helloworld/go/sub?sub.naming=spine",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/{name=publishers/*/books/*}/sub",
-			request:      &binding.HelloRequest{Name: "publishers/go/books/kratos", Sub: &binding.Sub{Name: "kratos"}},
+			request:      &binding.HelloRequest{Name: "publishers/go/books/spine", Sub: &binding.Sub{Name: "spine"}},
 			opts:         []BuildPathOption{WithQueryParams()},
-			want:         "http://helloworld.Greeter/helloworld/publishers/go/books/kratos/sub?sub.naming=kratos",
+			want:         "http://helloworld.Greeter/helloworld/publishers/go/books/spine/sub?sub.naming=spine",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/{name=**}/sub",
-			request:      &binding.HelloRequest{Name: "publishers/go/books/kratos", Sub: &binding.Sub{Name: "kratos"}},
+			request:      &binding.HelloRequest{Name: "publishers/go/books/spine", Sub: &binding.Sub{Name: "spine"}},
 			opts:         []BuildPathOption{WithQueryParams()},
-			want:         "http://helloworld.Greeter/helloworld/publishers/go/books/kratos/sub?sub.naming=kratos",
+			want:         "http://helloworld.Greeter/helloworld/publishers/go/books/spine/sub?sub.naming=spine",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/{sub.naming=publishers/*}",
-			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "publishers/kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/publishers/kratos",
+			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "publishers/spine"}},
+			want:         "http://helloworld.Greeter/helloworld/publishers/spine",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/sub/{sub.naming}",
-			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "kratos"}, UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name", "sub.naming"}}},
-			want:         "http://helloworld.Greeter/helloworld/sub/kratos?updateMask=name,sub.naming",
+			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "spine"}, UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name", "sub.naming"}}},
+			want:         "http://helloworld.Greeter/helloworld/sub/spine?updateMask=name,sub.naming",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/sub/[{sub.naming}]",
-			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/sub/[kratos]",
+			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "spine"}},
+			want:         "http://helloworld.Greeter/helloworld/sub/[spine]",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/[{name}]/sub/[{sub.naming}]",
-			request:      &binding.HelloRequest{Name: "test", Sub: &binding.Sub{Name: "kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/[test]/sub/[kratos]",
+			request:      &binding.HelloRequest{Name: "test", Sub: &binding.Sub{Name: "spine"}},
+			want:         "http://helloworld.Greeter/helloworld/[test]/sub/[spine]",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/[{}]/sub/[{sub.naming}]",
-			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/[{}]/sub/[kratos]",
+			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "spine"}},
+			want:         "http://helloworld.Greeter/helloworld/[{}]/sub/[spine]",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/[{}]/sub/[{sub.naming}]/{[]}",
-			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/[{}]/sub/[kratos]/{[]}",
+			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "spine"}},
+			want:         "http://helloworld.Greeter/helloworld/[{}]/sub/[spine]/{[]}",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/{[sub]}/[{sub.naming}]",
-			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/{[sub]}/[kratos]",
+			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "spine"}},
+			want:         "http://helloworld.Greeter/helloworld/{[sub]}/[spine]",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/{[name]}/[{sub.naming}]",
-			request:      &binding.HelloRequest{Name: "test", Sub: &binding.Sub{Name: "kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/{[name]}/[kratos]",
+			request:      &binding.HelloRequest{Name: "test", Sub: &binding.Sub{Name: "spine"}},
+			want:         "http://helloworld.Greeter/helloworld/{[name]}/[spine]",
 		},
 		{
 			pathTemplate: "http://helloworld.Greeter/helloworld/{}/[]/[{sub.naming}]",
-			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "kratos"}},
-			want:         "http://helloworld.Greeter/helloworld/{}/[]/[kratos]",
+			request:      &binding.HelloRequest{Sub: &binding.Sub{Name: "spine"}},
+			want:         "http://helloworld.Greeter/helloworld/{}/[]/[spine]",
 		},
 	}
 
@@ -301,7 +301,7 @@ func BenchmarkBuildPath(b *testing.B) {
 			pathTemplate: "http://helloworld.Greeter/helloworld/sub",
 			msg: &binding.HelloRequest{
 				Name: "test",
-				Sub:  &binding.Sub{Name: "kratos"},
+				Sub:  &binding.Sub{Name: "spine"},
 			},
 		},
 		{
@@ -309,7 +309,7 @@ func BenchmarkBuildPath(b *testing.B) {
 			pathTemplate: "http://helloworld.Greeter/helloworld/sub",
 			msg: &binding.HelloRequest{
 				Name: "test",
-				Sub:  &binding.Sub{Name: "kratos"},
+				Sub:  &binding.Sub{Name: "spine"},
 				UpdateMask: &fieldmaskpb.FieldMask{
 					Paths: []string{"name", "sub.naming"},
 				},
@@ -321,7 +321,7 @@ func BenchmarkBuildPath(b *testing.B) {
 			pathTemplate: "http://helloworld.Greeter/helloworld/{name}/sub/{sub.naming}",
 			msg: &binding.HelloRequest{
 				Name: "test",
-				Sub:  &binding.Sub{Name: "kratos"},
+				Sub:  &binding.Sub{Name: "spine"},
 			},
 		},
 		{
@@ -329,7 +329,7 @@ func BenchmarkBuildPath(b *testing.B) {
 			pathTemplate: "http://helloworld.Greeter/helloworld/{name}/sub/{sub.naming}",
 			msg: &binding.HelloRequest{
 				Name: "test",
-				Sub:  &binding.Sub{Name: "kratos"},
+				Sub:  &binding.Sub{Name: "spine"},
 				UpdateMask: &fieldmaskpb.FieldMask{
 					Paths: []string{"name", "sub.naming"},
 				},

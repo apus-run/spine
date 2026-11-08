@@ -11,14 +11,14 @@ var i int
 
 func TestChain(t *testing.T) {
 	next := func(_ context.Context, req any) (any, error) {
-		if req != "hello kratos!" {
-			t.Errorf("expect %v, got %v", "hello kratos!", req)
+		if req != "hello spine!" {
+			t.Errorf("expect %v, got %v", "hello spine!", req)
 		}
 		i += 10
 		return "reply", nil
 	}
 
-	got, err := Chain(test1Middleware, test2Middleware, test3Middleware)(next)(context.Background(), "hello kratos!")
+	got, err := Chain(test1Middleware, test2Middleware, test3Middleware)(next)(context.Background(), "hello spine!")
 	if err != nil {
 		t.Errorf("expect %v, got %v", nil, err)
 	}

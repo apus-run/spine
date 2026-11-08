@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
 
-	"github.com/go-kratos/kratos/v3/config"
+	"github.com/apus-run/spine/v3/config"
 )
 
 type watcher struct {

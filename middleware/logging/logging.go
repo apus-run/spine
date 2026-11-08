@@ -8,10 +8,10 @@ import (
 
 	"google.golang.org/grpc/codes"
 
-	"github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
-	"github.com/go-kratos/kratos/v3/transport/http/status"
+	"github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/transport"
+	"github.com/apus-run/spine/v3/transport/http/status"
 )
 
 // Redacter defines how to log an object

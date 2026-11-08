@@ -1,33 +1,33 @@
 # OpenTelemetry contrib
 
-This module keeps OpenTelemetry integrations out of the core Kratos module.
+This module keeps OpenTelemetry integrations out of the core Spine module.
 
 ## Packages
 
-- `github.com/go-kratos/kratos/contrib/otel/v3/log`: slog handler bridge, usually imported as `otel` for `otel.NewHandler`.
-- `github.com/go-kratos/kratos/contrib/otel/v3/tracing`: tracing middleware and trace slog attributes.
-- `github.com/go-kratos/kratos/contrib/otel/v3/metrics`: metrics middleware and OTel metric helpers.
+- `github.com/apus-run/spine/v3/log`: slog handler bridge, usually imported as `otel` for `otel.NewHandler`.
+- `github.com/apus-run/spine/v3/tracing`: tracing middleware and trace slog attributes.
+- `github.com/apus-run/spine/v3/metrics`: metrics middleware and OTel metric helpers.
 
 ## Logger
 
 ```go
 import (
-	otel "github.com/go-kratos/kratos/contrib/otel/v3/log"
-	"github.com/go-kratos/kratos/v3/log"
+	otel "github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/log"
 )
 
 logger := log.NewLogger(otel.NewHandler("helloworld"))
 ```
 
-Use the core Kratos log builder when the logger also needs fixed attrs or
+Use the core Spine log builder when the logger also needs fixed attrs or
 filtering:
 
 ```go
 import (
 	"log/slog"
 
-	otel "github.com/go-kratos/kratos/contrib/otel/v3/log"
-	"github.com/go-kratos/kratos/v3/log"
+	otel "github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/log"
 )
 
 logger := log.NewLogger(

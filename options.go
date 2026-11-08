@@ -1,4 +1,4 @@
-package kratos
+package spine
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-kratos/kratos/v3/registry"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/registry"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 // Option is an application option.

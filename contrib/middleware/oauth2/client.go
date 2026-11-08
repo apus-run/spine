@@ -5,8 +5,8 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 // Client is a client oauth2 middleware. It fetches an access token from the

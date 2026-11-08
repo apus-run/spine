@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	kratoserrors "github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/middleware"
+	spineerrors "github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/middleware"
 )
 
 // protoVali implement validate.validator
@@ -35,7 +35,7 @@ func TestTable(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			v := Validator()(mock)
 			_, err := v(context.Background(), test)
-			if want, have := test.isErr, kratoserrors.IsBadRequest(err); want != have {
+			if want, have := test.isErr, spineerrors.IsBadRequest(err); want != have {
 				t.Errorf("fail data %v, want %v, have %v", test, want, have)
 			}
 		})

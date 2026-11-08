@@ -8,7 +8,7 @@ import (
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/registry"
 )
 
 func TestRegistry(t *testing.T) {

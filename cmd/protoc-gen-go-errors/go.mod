@@ -1,6 +1,6 @@
-module github.com/go-kratos/kratos/cmd/protoc-gen-go-errors/v3
+module github.com/apus-run/spine/cmd/protoc-gen-go-errors/v3
 
-go 1.25.0
+go 1.27
 
 require (
 	golang.org/x/text v0.37.0

@@ -1,6 +1,6 @@
 ---
 name: "\U0001F41B Bug Report"
-about: Report something that's broken. Please ensure your kratos version is still supported.
+about: Report something that's broken. Please ensure your spine version is still supported.
 title: ''
 labels: bug
 assignees: ''
@@ -20,7 +20,7 @@ For questions please use one of our forums: https://go-kratos.dev/docs/getting-s
 #### Anything else we need to know?:
 
 #### Environment:
-- Kratos version (use `kratos -v`):
+- Spine version (use `spine -v`):
 - Go version (use `go version`):
 - OS (e.g: `cat /etc/os-release`):
 - Others:

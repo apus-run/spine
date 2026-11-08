@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/oauth2"
 
-	kerrors "github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/transport"
+	kerrors "github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 type headerCarrier http.Header

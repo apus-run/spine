@@ -76,9 +76,9 @@ jobs:
       - name: Upload coverage to Codecov
         run: bash <(curl -s https://codecov.io/bash)
 
-      - name: Kratos
+      - name: Spine
         run: |
-          cd cmd/kratos
+          cd cmd/spine
           go build ./...
         env:
           GOTOOLCHAIN: auto

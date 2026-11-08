@@ -11,17 +11,17 @@ import (
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/go-kratos/kratos/cmd/protoc-gen-go-errors/v3/errors"
+	"github.com/apus-run/spine/cmd/protoc-gen-go-errors/v3/errors"
 )
 
 const (
-	errorsPackage = protogen.GoImportPath("github.com/go-kratos/kratos/v3/errors")
+	errorsPackage = protogen.GoImportPath("github.com/apus-run/spine/cmd/protoc-gen-go-errors/v3/errors")
 	fmtPackage    = protogen.GoImportPath("fmt")
 )
 
 var enCases = cases.Title(language.AmericanEnglish, cases.NoLower)
 
-// generateFile generates a _errors.pb.go file containing kratos errors definitions.
+// generateFile generates a _errors.pb.go file containing spine errors definitions.
 func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.GeneratedFile {
 	if len(file.Enums) == 0 {
 		return nil
@@ -37,14 +37,14 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 	return g
 }
 
-// generateFileContent generates the kratos errors definitions, excluding the package statement.
+// generateFileContent generates the spine errors definitions, excluding the package statement.
 func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile) {
 	if len(file.Enums) == 0 {
 		return
 	}
 
 	g.P("// This is a compile-time assertion to ensure that this generated file")
-	g.P("// is compatible with the kratos package it is being compiled against.")
+	g.P("// is compatible with the spine package it is being compiled against.")
 	g.P("const _ = ", errorsPackage.Ident("SupportPackageIsVersion1"))
 	g.P()
 	index := 0

@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/go-kratos/kratos/v3/encoding/form"
+	"github.com/apus-run/spine/v3/encoding/form"
 )
 
 var pathTemplateParamRE = regexp.MustCompile(`{([.\w]+)(=[^{}]*)?}`)

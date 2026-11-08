@@ -3,5 +3,5 @@
 ## msgpack
 
 ```shell
-go get -u github.com/go-kratos/kratos/contrib/encoding/msgpack/v3
+go get -u github.com/apus-run/spine/v3
 ```

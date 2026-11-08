@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	testData "github.com/go-kratos/kratos/v3/internal/testdata/encoding"
+	testData "github.com/apus-run/spine/v3/internal/testdata/encoding"
 )
 
 func TestName(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCodec(t *testing.T) {
 
 	model := testData.TestModel{
 		Id:    1,
-		Name:  "kratos",
+		Name:  "spine",
 		Hobby: []string{"study", "eat", "play"},
 	}
 
@@ -50,7 +50,7 @@ func TestCodec2(t *testing.T) {
 
 	model := testData.TestModel{
 		Id:    1,
-		Name:  "kratos",
+		Name:  "spine",
 		Hobby: []string{"study", "eat", "play"},
 	}
 

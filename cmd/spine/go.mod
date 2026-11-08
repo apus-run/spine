@@ -1,4 +1,4 @@
-module github.com/go-kratos/kratos/cmd/kratos/v3
+module github.com/apus-run/spine/cmd/spine/v3
 
 go 1.25.0
 
@@ -8,8 +8,8 @@ require (
 	github.com/emicklei/proto v1.14.3
 	github.com/fatih/color v1.19.0
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/mod v0.36.0
-	golang.org/x/text v0.37.0
+	golang.org/x/mod v0.40.0
+	golang.org/x/text v0.41.0
 )
 
 require (

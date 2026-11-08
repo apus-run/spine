@@ -1,7 +1,7 @@
 ./examples
 ./cmd/protoc-gen-go-errors
 ./cmd/protoc-gen-go-http
-./cmd/kratos
+./cmd/spine
 ./contrib/config/kubernetes
 ./contrib/registry/kubernetes
 ./contrib/registry/zookeeper

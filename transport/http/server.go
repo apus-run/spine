@@ -11,12 +11,12 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/go-kratos/kratos/v3/internal/endpoint"
-	"github.com/go-kratos/kratos/v3/internal/host"
-	"github.com/go-kratos/kratos/v3/internal/matcher"
-	"github.com/go-kratos/kratos/v3/log"
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/internal/endpoint"
+	"github.com/apus-run/spine/v3/internal/host"
+	"github.com/apus-run/spine/v3/internal/matcher"
+	"github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 var (

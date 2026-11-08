@@ -5,11 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/go-kratos/kratos/cmd/kratos/v3/internal/change"
-	"github.com/go-kratos/kratos/cmd/kratos/v3/internal/project"
-	"github.com/go-kratos/kratos/cmd/kratos/v3/internal/proto"
-	"github.com/go-kratos/kratos/cmd/kratos/v3/internal/run"
-	"github.com/go-kratos/kratos/cmd/kratos/v3/internal/upgrade"
+	"github.com/apus-run/spine/cmd/spine/v3/internal/change"
+	"github.com/apus-run/spine/cmd/spine/v3/internal/project"
+	"github.com/apus-run/spine/cmd/spine/v3/internal/proto"
+	"github.com/apus-run/spine/cmd/spine/v3/internal/run"
+	"github.com/apus-run/spine/cmd/spine/v3/internal/upgrade"
 )
 
 var rootCmd = &cobra.Command{

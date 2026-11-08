@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 // RequireScopes is a server middleware that requires the token to be granted

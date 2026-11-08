@@ -1,9 +1,9 @@
-module github.com/go-kratos/kratos/contrib/config/etcd/v3
+module github.com/apus-run/spine/contrib/config/etcd/v3
 
 go 1.25.0
 
 require (
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	go.etcd.io/etcd/client/v3 v3.6.11
 	google.golang.org/grpc v1.81.0
 )
@@ -27,4 +27,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../../
+replace github.com/apus-run/spine/v3 => ../../../

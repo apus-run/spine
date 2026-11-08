@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kratos/kratos/v3/log"
+	"github.com/apus-run/spine/v3/log"
 
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/registry"
 
 	"github.com/polarismesh/polaris-go/api"
 	"github.com/polarismesh/polaris-go/pkg/config"
@@ -419,7 +419,7 @@ func instancesToServiceInstances(instances []model.Instance) []*registry.Service
 
 func instanceToServiceInstance(instance model.Instance) *registry.ServiceInstance {
 	metadata := instance.GetMetadata()
-	// Usually, it won't fail in kratos if register correctly
+	// Usually, it won't fail in spine if register correctly
 	kind := ""
 	if k, ok := metadata["kind"]; ok {
 		kind = k

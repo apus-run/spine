@@ -6,11 +6,11 @@ package helloworld
 
 import (
 	context "context"
-	http "github.com/go-kratos/kratos/v3/transport/http"
+	http "github.com/apus-run/spine/v3/transport/http"
 )
 
 // This is a compile-time assertion to ensure that this generated file
-// is compatible with the kratos package it is being compiled against.
+// is compatible with the spine package it is being compiled against.
 var _ = new(context.Context)
 
 const _ = http.SupportPackageIsVersion3

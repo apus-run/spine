@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-kratos/kratos/v3/errors"
+	"github.com/apus-run/spine/v3/errors"
 )
 
 func TestOnce(t *testing.T) {

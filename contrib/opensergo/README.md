@@ -17,9 +17,9 @@ grpcSrv := grpc.NewServer(
 )
 helloworld.RegisterGreeterServer(grpcSrv, s)
 
-app := kratos.New(
-	kratos.Name(Name),
-	kratos.Server(
+app := spine.New(
+	spine.Name(Name),
+	spine.Server(
 		grpcSrv,
 	),
 )

@@ -1,4 +1,4 @@
-module github.com/go-kratos/kratos/cmd/protoc-gen-go-http/v3
+module github.com/apus-run/spine/cmd/protoc-gen-go-http/v3
 
 go 1.25.0
 

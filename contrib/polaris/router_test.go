@@ -10,9 +10,9 @@ import (
 
 	"github.com/polarismesh/polaris-go"
 
-	"github.com/go-kratos/kratos/v3"
-	"github.com/go-kratos/kratos/v3/registry"
-	"github.com/go-kratos/kratos/v3/selector"
+	"github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3/registry"
+	"github.com/apus-run/spine/v3/selector"
 )
 
 func TestRouter(t *testing.T) {
@@ -23,7 +23,7 @@ func TestRouter(t *testing.T) {
 	data := `
 [
     {
-        "name":"kratos",
+        "name":"spine",
         "enable":false,
         "description":"123",
         "priority":2,
@@ -130,8 +130,8 @@ func TestRouter(t *testing.T) {
 	)
 
 	ins := &registry.ServiceInstance{
-		ID:      "kratos",
-		Name:    "kratos",
+		ID:      "spine",
+		Name:    "spine",
 		Version: "v1.0.0",
 		Endpoints: []string{
 			"grpc://127.0.0.1:8080",
@@ -169,7 +169,7 @@ func TestRouter(t *testing.T) {
 	}
 
 	f := p.NodeFilter()
-	ctx := kratos.NewContext(context.Background(), &mockApp{})
+	ctx := spine.NewContext(context.Background(), &mockApp{})
 	n := f(ctx, nodes)
 	for _, node := range n {
 		if node.Metadata()["az"] != "1" {
@@ -189,7 +189,7 @@ func (m mockApp) ID() string {
 }
 
 func (m mockApp) Name() string {
-	return "kratos"
+	return "spine"
 }
 
 func (m mockApp) Version() string {

@@ -8,11 +8,11 @@ import (
 	"time"
 
 	// init encoding
-	_ "github.com/go-kratos/kratos/v3/encoding/json"
-	_ "github.com/go-kratos/kratos/v3/encoding/proto"
-	_ "github.com/go-kratos/kratos/v3/encoding/xml"
-	_ "github.com/go-kratos/kratos/v3/encoding/yaml"
-	"github.com/go-kratos/kratos/v3/log"
+	_ "github.com/apus-run/spine/v3/encoding/json"
+	_ "github.com/apus-run/spine/v3/encoding/proto"
+	_ "github.com/apus-run/spine/v3/encoding/xml"
+	_ "github.com/apus-run/spine/v3/encoding/yaml"
+	"github.com/apus-run/spine/v3/log"
 )
 
 var _ Config = (*config)(nil)

@@ -18,12 +18,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/go-kratos/kratos/v3/encoding"
-	kerrors "github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/internal/httputil"
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/selector"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/encoding"
+	kerrors "github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/internal/httputil"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/selector"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 const (

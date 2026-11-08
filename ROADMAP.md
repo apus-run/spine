@@ -1,6 +1,6 @@
-# Kratos
+# Spine
 
-This document defines the roadmap for Kratos development.
+This document defines the roadmap for Spine development.
 
 ## Features
 - [x] Config
@@ -54,18 +54,18 @@ This document defines the roadmap for Kratos development.
     - [ ] Gorm
 
 ## Platform
-- [ ] Kratos API
+- [ ] Spine API
     - [ ] Auth
     - [ ] Config
     - [ ] Registry
     - [ ] Events
-- [ ] Kratos Runtime
+- [ ] Spine Runtime
     - [ ] Secrets
     - [ ] Service-to-Service
     - [ ] Publish and Subscribe
     - [ ] Observability
     - [ ] Controllable
-- [ ] Kratos UI
+- [ ] Spine UI
     - [ ] Auth
     - [ ] Config
     - [ ] Services
@@ -76,7 +76,7 @@ This document defines the roadmap for Kratos development.
     - [ ] TrafficPolicy
 
 ## Tools
-- [x] Kratos
+- [x] Spine
 - [x] HTTP Generator
     - [ ] API YAML
 - [x] Errors Generator

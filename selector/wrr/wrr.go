@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-kratos/kratos/v3/selector"
-	"github.com/go-kratos/kratos/v3/selector/node/direct"
+	"github.com/apus-run/spine/v3/selector"
+	"github.com/apus-run/spine/v3/selector/node/direct"
 )
 
 const (

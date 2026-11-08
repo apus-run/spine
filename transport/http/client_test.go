@@ -18,10 +18,10 @@ import (
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	kratoserrors "github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/registry"
-	"github.com/go-kratos/kratos/v3/selector"
+	spineerrors "github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/registry"
+	"github.com/apus-run/spine/v3/selector"
 )
 
 type mockRoundTripper struct{}
@@ -107,7 +107,7 @@ func TestWithTLSConfig(t *testing.T) {
 }
 
 func TestWithUserAgent(t *testing.T) {
-	ov := "kratos"
+	ov := "spine"
 	o := WithUserAgent(ov)
 	co := &clientOptions{}
 	o(co)
@@ -181,7 +181,7 @@ type mockWatcher struct{}
 func (m *mockWatcher) Next() ([]*registry.ServiceInstance, error) {
 	instance := &registry.ServiceInstance{
 		ID:        "1",
-		Name:      "kratos",
+		Name:      "spine",
 		Version:   "v1",
 		Metadata:  map[string]string{},
 		Endpoints: []string{fmt.Sprintf("http://127.0.0.1:9001?isSecure=%s", strconv.FormatBool(false))},
@@ -260,9 +260,9 @@ func TestDefaultRequestEncoderUnknownCodec(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	se := new(kratoserrors.Error)
+	se := new(spineerrors.Error)
 	if !errors.As(err, &se) {
-		t.Fatalf("expected kratos error, got %T", err)
+		t.Fatalf("expected spine error, got %T", err)
 	}
 	if se.Reason != "CODEC" {
 		t.Errorf("expected %v, got %v", "CODEC", se.Reason)
@@ -375,14 +375,14 @@ func TestDefaultErrorDecoder(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
-	if err.(*kratoserrors.Error).Code != int32(500) {
-		t.Errorf("expected %v, got %v", 500, err.(*kratoserrors.Error).Code)
+	if err.(*spineerrors.Error).Code != int32(500) {
+		t.Errorf("expected %v, got %v", 500, err.(*spineerrors.Error).Code)
 	}
-	if err.(*kratoserrors.Error).Message != "hi" {
-		t.Errorf("expected %v, got %v", "hi", err.(*kratoserrors.Error).Message)
+	if err.(*spineerrors.Error).Message != "hi" {
+		t.Errorf("expected %v, got %v", "hi", err.(*spineerrors.Error).Message)
 	}
-	if err.(*kratoserrors.Error).Reason != "FOO" {
-		t.Errorf("expected %v, got %v", "FOO", err.(*kratoserrors.Error).Reason)
+	if err.(*spineerrors.Error).Reason != "FOO" {
+		t.Errorf("expected %v, got %v", "FOO", err.(*spineerrors.Error).Reason)
 	}
 }
 
@@ -400,11 +400,11 @@ func TestNewClient(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = NewClient(context.Background(), WithEndpoint("127.0.0.1:9999"), WithTLSConfig(&tls.Config{ServerName: "www.kratos.com", RootCAs: nil}))
+	_, err = NewClient(context.Background(), WithEndpoint("127.0.0.1:9999"), WithTLSConfig(&tls.Config{ServerName: "www.spine.com", RootCAs: nil}))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = NewClient(context.Background(), WithDiscovery(&mockDiscovery{}), WithEndpoint("discovery:///go-kratos"))
+	_, err = NewClient(context.Background(), WithDiscovery(&mockDiscovery{}), WithEndpoint("discovery:///spine"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -424,7 +424,7 @@ func TestNewClient(t *testing.T) {
 	client, err := NewClient(
 		context.Background(),
 		WithDiscovery(&mockDiscovery{}),
-		WithEndpoint("discovery:///go-kratos"),
+		WithEndpoint("discovery:///spine"),
 		WithMiddleware(func(handler middleware.Handler) middleware.Handler {
 			t.Logf("handle in middleware")
 			return func(ctx context.Context, req any) (any, error) {
@@ -436,18 +436,18 @@ func TestNewClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = client.Invoke(context.Background(), http.MethodPost, "/go", map[string]string{"name": "kratos"}, nil, EmptyCallOption{}, &mockCallOption{})
+	err = client.Invoke(context.Background(), http.MethodPost, "/go", map[string]string{"name": "spine"}, nil, EmptyCallOption{}, &mockCallOption{})
 	if err == nil {
 		t.Error("err should not be equal to nil")
 	}
-	err = client.Invoke(context.Background(), http.MethodPost, "/go", map[string]string{"name": "kratos"}, nil, EmptyCallOption{}, &mockCallOption{needErr: true})
+	err = client.Invoke(context.Background(), http.MethodPost, "/go", map[string]string{"name": "spine"}, nil, EmptyCallOption{}, &mockCallOption{needErr: true})
 	if err == nil {
 		t.Error("err should be equal to callOption err")
 	}
 	client.opts.encoder = func(context.Context, string, any) (body []byte, err error) {
 		return nil, errors.New("mock test encoder error")
 	}
-	err = client.Invoke(context.Background(), http.MethodPost, "/go", map[string]string{"name": "kratos"}, nil, EmptyCallOption{})
+	err = client.Invoke(context.Background(), http.MethodPost, "/go", map[string]string{"name": "spine"}, nil, EmptyCallOption{})
 	if err == nil {
 		t.Error("err should be equal to encoder error")
 	}
@@ -460,7 +460,7 @@ func TestNewClientWithTLSDoesNotModifyDefaultTransport(t *testing.T) {
 	}
 	originalTLSConfig := defaultTransport.TLSClientConfig
 
-	_, err := NewClient(context.Background(), WithEndpoint("127.0.0.1:9999"), WithTLSConfig(&tls.Config{ServerName: "www.kratos.com"}))
+	_, err := NewClient(context.Background(), WithEndpoint("127.0.0.1:9999"), WithTLSConfig(&tls.Config{ServerName: "www.spine.com"}))
 	if err != nil {
 		t.Error(err)
 	}

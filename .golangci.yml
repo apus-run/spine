@@ -62,7 +62,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/go-kratos
+        - github.com/apus-run/spine/v3
   exclusions:
     generated: lax
     paths:

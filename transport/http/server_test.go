@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	kratoserrors "github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/internal/host"
-	"github.com/go-kratos/kratos/v3/log"
+	spineerrors "github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/internal/host"
+	"github.com/apus-run/spine/v3/log"
 )
 
 var h = func(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +54,7 @@ func TestServeHTTP(t *testing.T) {
 	mux := NewServer(Listener(ln))
 	mux.HandleFunc("/index", h)
 	mux.Route("/errors").GET("/cause", func(Context) error {
-		return kratoserrors.BadRequest("xxx", "zzz").
+		return spineerrors.BadRequest("xxx", "zzz").
 			WithMetadata(map[string]string{"foo": "bar"}).
 			WithCause(errors.New("error cause"))
 	})
@@ -70,7 +70,7 @@ func TestServeHTTP(t *testing.T) {
 	srv := http.Server{Handler: mux}
 	go func() {
 		if err := srv.Serve(ln); err != nil {
-			if kratoserrors.Is(err, http.ErrServerClosed) {
+			if spineerrors.Is(err, http.ErrServerClosed) {
 				return
 			}
 			panic(err)
@@ -92,7 +92,7 @@ func TestServer(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(testData{Path: r.RequestURI})
 	})
 	srv.Route("/errors").GET("/cause", func(Context) error {
-		return kratoserrors.BadRequest("xxx", "zzz").
+		return spineerrors.BadRequest("xxx", "zzz").
 			WithMetadata(map[string]string{"foo": "bar"}).
 			WithCause(errors.New("error cause"))
 	})
@@ -140,7 +140,7 @@ func testAccept(t *testing.T, srv *Server) {
 		}
 		req.Header.Set("Content-Type", test.contentType)
 		resp, err := client.Do(req)
-		if kratoserrors.Code(err) != 400 {
+		if spineerrors.Code(err) != 400 {
 			t.Errorf("expected 400 got %v", err)
 		}
 		if err == nil {
@@ -209,7 +209,7 @@ func testClient(t *testing.T, srv *Server) {
 			t.Fatal(err)
 		}
 		resp, err := client.Do(req)
-		if kratoserrors.Code(err) != test.code {
+		if spineerrors.Code(err) != test.code {
 			t.Fatalf("want %v, but got %v", test, err)
 		}
 		if err != nil {
@@ -235,7 +235,7 @@ func testClient(t *testing.T, srv *Server) {
 	for _, test := range tests {
 		var res testData
 		err := client.Invoke(context.Background(), test.method, test.path, nil, &res)
-		if kratoserrors.Code(err) != test.code {
+		if spineerrors.Code(err) != test.code {
 			t.Fatalf("want %v, but got %v", test, err)
 		}
 		if err != nil {

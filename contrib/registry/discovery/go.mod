@@ -1,9 +1,9 @@
-module github.com/go-kratos/kratos/contrib/registry/discovery/v3
+module github.com/apus-run/spine/contrib/registry/discovery/v3
 
 go 1.25.0
 
 require (
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/pkg/errors v0.9.1
 )
@@ -13,4 +13,4 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../../
+replace github.com/apus-run/spine/v3 => ../../../

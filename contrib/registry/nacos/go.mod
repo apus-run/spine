@@ -1,9 +1,9 @@
-module github.com/go-kratos/kratos/contrib/registry/nacos/v3
+module github.com/apus-run/spine/contrib/registry/nacos/v3
 
 go 1.25.0
 
 require (
-	github.com/go-kratos/kratos/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0
 	github.com/golang/mock v1.6.0
 	github.com/nacos-group/nacos-sdk-go/v2 v2.3.5
 )
@@ -57,4 +57,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/go-kratos/kratos/v3 => ../../../
+replace github.com/apus-run/spine/v3 => ../../../

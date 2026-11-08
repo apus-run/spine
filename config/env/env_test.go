@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-kratos/kratos/v3/config"
-	"github.com/go-kratos/kratos/v3/config/file"
+	"github.com/apus-run/spine/v3/config"
+	"github.com/apus-run/spine/v3/config/file"
 )
 
 const _testJSON = `
@@ -42,9 +42,9 @@ func TestEnvWithPrefix(t *testing.T) {
 	}
 
 	// set env
-	prefix1, prefix2 := "KRATOS_", "FOO"
+	prefix1, prefix2 := "SPINE_", "FOO"
 	envs := map[string]string{
-		prefix1 + "SERVICE_NAME": "kratos_app",
+		prefix1 + "SERVICE_NAME": "spine_app",
 		prefix2 + "ADDR":         "192.168.0.1",
 		prefix1 + "AGE":          "20",
 		// only prefix
@@ -73,7 +73,7 @@ func TestEnvWithPrefix(t *testing.T) {
 		{
 			name:   "test $KEY",
 			path:   "test.server.name",
-			expect: "kratos_app",
+			expect: "spine_app",
 		},
 		{
 			name:   "test ${KEY:DEFAULT} without default",
@@ -161,7 +161,7 @@ func TestEnvWithoutPrefix(t *testing.T) {
 
 	// set env
 	envs := map[string]string{
-		"SERVICE_NAME": "kratos_app",
+		"SERVICE_NAME": "spine_app",
 		"ADDR":         "192.168.0.1",
 		"AGE":          "20",
 	}
@@ -187,7 +187,7 @@ func TestEnvWithoutPrefix(t *testing.T) {
 		{
 			name:   "test $KEY",
 			path:   "test.server.name",
-			expect: "kratos_app",
+			expect: "spine_app",
 		},
 		{
 			name:   "test ${KEY:DEFAULT} without default",
@@ -279,13 +279,13 @@ func Test_env_load(t *testing.T) {
 			},
 			args: args{
 				envStrings: []string{
-					"SERVICE_NAME=kratos_app",
+					"SERVICE_NAME=spine_app",
 					"ADDR=192.168.0.1",
 					"AGE=20",
 				},
 			},
 			want: []*config.KeyValue{
-				{Key: "SERVICE_NAME", Value: []byte("kratos_app"), Format: ""},
+				{Key: "SERVICE_NAME", Value: []byte("spine_app"), Format: ""},
 				{Key: "ADDR", Value: []byte("192.168.0.1"), Format: ""},
 				{Key: "AGE", Value: []byte("20"), Format: ""},
 			},
@@ -298,13 +298,13 @@ func Test_env_load(t *testing.T) {
 			},
 			args: args{
 				envStrings: []string{
-					"__SERVICE_NAME=kratos_app",
+					"__SERVICE_NAME=spine_app",
 					"__ADDR=192.168.0.1",
 					"__AGE=20",
 				},
 			},
 			want: []*config.KeyValue{
-				{Key: "_SERVICE_NAME", Value: []byte("kratos_app"), Format: ""},
+				{Key: "_SERVICE_NAME", Value: []byte("spine_app"), Format: ""},
 				{Key: "_ADDR", Value: []byte("192.168.0.1"), Format: ""},
 				{Key: "_AGE", Value: []byte("20"), Format: ""},
 			},
@@ -317,13 +317,13 @@ func Test_env_load(t *testing.T) {
 			},
 			args: args{
 				envStrings: []string{
-					"__SERVICE_NAME=kratos_app",
+					"__SERVICE_NAME=spine_app",
 					"__ADDR=192.168.0.1",
 					"__AGE=20",
 				},
 			},
 			want: []*config.KeyValue{
-				{Key: "SERVICE_NAME", Value: []byte("kratos_app"), Format: ""},
+				{Key: "SERVICE_NAME", Value: []byte("spine_app"), Format: ""},
 				{Key: "ADDR", Value: []byte("192.168.0.1"), Format: ""},
 				{Key: "AGE", Value: []byte("20"), Format: ""},
 			},
@@ -332,17 +332,17 @@ func Test_env_load(t *testing.T) {
 		{
 			name: "with prefixes",
 			fields: fields{
-				prefixes: []string{"KRATOS_", "FOO"},
+				prefixes: []string{"SPINE_", "FOO"},
 			},
 			args: args{
 				envStrings: []string{
-					"KRATOS_SERVICE_NAME=kratos_app",
-					"KRATOS_ADDR=192.168.0.1",
+					"SPINE_SERVICE_NAME=spine_app",
+					"SPINE_ADDR=192.168.0.1",
 					"FOO_AGE=20",
 				},
 			},
 			want: []*config.KeyValue{
-				{Key: "SERVICE_NAME", Value: []byte("kratos_app"), Format: ""},
+				{Key: "SERVICE_NAME", Value: []byte("spine_app"), Format: ""},
 				{Key: "ADDR", Value: []byte("192.168.0.1"), Format: ""},
 				{Key: "AGE", Value: []byte("20"), Format: ""},
 			},

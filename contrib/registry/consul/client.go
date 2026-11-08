@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kratos/kratos/v3/log"
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/registry"
 
 	"github.com/hashicorp/consul/api"
 )

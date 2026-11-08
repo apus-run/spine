@@ -9,13 +9,13 @@ import (
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/go-kratos/kratos/v3/internal/testdata/complex"
+	"github.com/apus-run/spine/v3/internal/testdata/complex"
 )
 
 func TestDecodeValues(t *testing.T) {
 	form, err := url.ParseQuery("a=19&age=18&b=true&bool=false&byte=MTIz&bytes=MTIz&count=3&d=22.22&double=12.33&duration=" +
 		"2m0.000000022s&field=1%2C2&float=12.34&id=2233&int32=32&int64=64&numberOne=2233&price=11.23&sex=woman&strings=3344&" +
-		"strings=5566&string=go-kratos&timestamp=1970-01-01T00%3A00%3A20.000000002Z&uint32=32&uint64=64&very_simple.component=5566")
+		"strings=5566&string=spine&timestamp=1970-01-01T00%3A00%3A20.000000002Z&uint32=32&uint64=64&very_simple.component=5566")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,25 +80,25 @@ func TestPopulateRepeatedField(t *testing.T) {
 }
 
 func TestPopulateMapField(t *testing.T) {
-	query, err := url.ParseQuery("map%5Bkratos%5D=https://go-kratos.dev/")
+	query, err := url.ParseQuery("map%5Bspine%5D=https://go-kratos.dev/")
 	if err != nil {
 		t.Fatal(err)
 	}
 	comp := &complex.Complex{}
 	field := getFieldDescriptor(comp.ProtoReflect(), "map")
 	// Fill the comp map field with the url query values
-	err = populateMapField(field, comp.ProtoReflect().Mutable(field).Map(), []string{"map[kratos]"}, query["map[kratos]"])
+	err = populateMapField(field, comp.ProtoReflect().Mutable(field).Map(), []string{"map[spine]"}, query["map[spine]"])
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Get the comp map field value
-	if query["map[kratos]"][0] != comp.Map["kratos"] {
-		t.Errorf("want: %s, got: %s", query["map[kratos]"], comp.Map["kratos"])
+	if query["map[spine]"][0] != comp.Map["spine"] {
+		t.Errorf("want: %s, got: %s", query["map[spine]"], comp.Map["spine"])
 	}
 }
 
 func TestPopulateMapSepField(t *testing.T) {
-	query, err := url.ParseQuery("map.name=kratos")
+	query, err := url.ParseQuery("map.name=spine")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +242,7 @@ func TestParseURLQueryMapKey(t *testing.T) {
 		err       error
 	}{
 		{
-			fieldName: "map[kratos]", field: "map", fieldKey: "kratos", err: nil,
+			fieldName: "map[spine]", field: "map", fieldKey: "spine", err: nil,
 		},
 		{
 			fieldName: "map[]", field: "map", fieldKey: "", err: nil,
@@ -254,10 +254,10 @@ func TestParseURLQueryMapKey(t *testing.T) {
 			fieldName: "[[]", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
-			fieldName: "map[kratos]=", field: "", fieldKey: "", err: errInvalidFormatMapKey,
+			fieldName: "map[spine]=", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
-			fieldName: "[kratos]", field: "", fieldKey: "", err: errInvalidFormatMapKey,
+			fieldName: "[spine]", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
 			fieldName: "map", field: "", fieldKey: "", err: errInvalidFormatMapKey,
@@ -266,25 +266,25 @@ func TestParseURLQueryMapKey(t *testing.T) {
 			fieldName: "map[", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
-			fieldName: "]kratos[", field: "", fieldKey: "", err: errInvalidFormatMapKey,
+			fieldName: "]spine[", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
-			fieldName: "[kratos", field: "", fieldKey: "", err: errInvalidFormatMapKey,
+			fieldName: "[spine", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
-			fieldName: "kratos]", field: "", fieldKey: "", err: errInvalidFormatMapKey,
+			fieldName: "spine]", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
-			fieldName: "map.kratos", field: "map", fieldKey: "kratos", err: nil,
+			fieldName: "map.spine", field: "map", fieldKey: "spine", err: nil,
 		},
 		{
 			fieldName: "map.", field: "map", fieldKey: "", err: nil,
 		},
 		{
-			fieldName: ".kratos", field: "", fieldKey: "", err: errInvalidFormatMapKey,
+			fieldName: ".spine", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 		{
-			fieldName: "map.kratos.v2", field: "", fieldKey: "", err: errInvalidFormatMapKey,
+			fieldName: "map.spine.v2", field: "", fieldKey: "", err: errInvalidFormatMapKey,
 		},
 	}
 	for _, test := range tests {
@@ -313,15 +313,15 @@ func BenchmarkParseURLQueryMapKey(b *testing.B) {
 	}{
 		{
 			testName:       "with bracket",
-			fieldName:      "kratos[version]",
-			wantedField:    "kratos",
+			fieldName:      "spine[version]",
+			wantedField:    "spine",
 			wantedFieldKey: "version",
 			wantedErr:      nil,
 		},
 		{
 			testName:       "with point",
-			fieldName:      "kratos.version",
-			wantedField:    "kratos",
+			fieldName:      "spine.version",
+			wantedField:    "spine",
 			wantedFieldKey: "version",
 			wantedErr:      nil,
 		},

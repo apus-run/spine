@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
-	"github.com/go-kratos/kratos/v3"
+	"github.com/apus-run/spine/v3"
 )
 
 type Option func(*options)
@@ -72,7 +72,7 @@ func New(opts ...Option) (*OpenSergo, error) {
 	}, nil
 }
 
-func (s *OpenSergo) ReportMetadata(ctx context.Context, app kratos.AppInfo) error {
+func (s *OpenSergo) ReportMetadata(ctx context.Context, app spine.AppInfo) error {
 	services, types, err := listDescriptors()
 	if err != nil {
 		return err

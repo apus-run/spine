@@ -5,8 +5,8 @@ import (
 	stderrors "errors"
 	"testing"
 
-	kratoserrors "github.com/go-kratos/kratos/v3/errors"
-	"github.com/go-kratos/kratos/v3/transport"
+	spineerrors "github.com/apus-run/spine/v3/errors"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 type transportMock struct {
@@ -120,7 +120,7 @@ func TestClientMarksServerErrorAsFailed(t *testing.T) {
 	breaker := &circuitBreakerMock{}
 	ctx := transport.NewClientContext(context.Background(), &transportMock{operation: "/foo"})
 	next := func(context.Context, any) (any, error) {
-		return nil, kratoserrors.InternalServer("", "")
+		return nil, spineerrors.InternalServer("", "")
 	}
 
 	_, _ = Client(WithBreakerFactory(func() CircuitBreaker {

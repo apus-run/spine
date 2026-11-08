@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-kratos/kratos/v3"
-	"github.com/go-kratos/kratos/v3/metadata"
+	"github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3/metadata"
 
 	"go.opentelemetry.io/otel/propagation"
 )
@@ -27,15 +27,15 @@ func TestMetadata_Inject(t *testing.T) {
 			want: "https://go-kratos.dev",
 		},
 		{
-			name: "https://github.com/go-kratos/kratos",
-			args: args{"https://github.com/go-kratos/kratos", propagation.HeaderCarrier{"mode": []string{"test"}}},
-			want: "https://github.com/go-kratos/kratos",
+			name: "https://github.com/apus-run/spine/v3",
+			args: args{"https://github.com/apus-run/spine/v3", propagation.HeaderCarrier{"mode": []string{"test"}}},
+			want: "https://github.com/apus-run/spine/v3",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := kratos.New(kratos.Name(tt.args.appName))
-			ctx := kratos.NewContext(context.Background(), a)
+			a := spine.New(spine.Name(tt.args.appName))
+			ctx := spine.NewContext(context.Background(), a)
 			m := new(Metadata)
 			m.Inject(ctx, tt.args.carrier)
 			if res := tt.args.carrier.Get(serviceHeader); tt.want != res {
@@ -65,15 +65,15 @@ func TestMetadata_Extract(t *testing.T) {
 			want: "https://go-kratos.dev",
 		},
 		{
-			name: "https://github.com/go-kratos/kratos",
+			name: "https://github.com/apus-run/spine/v3",
 			args: args{
 				parent:  metadata.NewServerContext(context.Background(), metadata.Metadata{}),
-				carrier: propagation.HeaderCarrier{"X-Md-Service-Name": []string{"https://github.com/go-kratos/kratos"}},
+				carrier: propagation.HeaderCarrier{"X-Md-Service-Name": []string{"https://github.com/apus-run/spine/v3"}},
 			},
-			want: "https://github.com/go-kratos/kratos",
+			want: "https://github.com/apus-run/spine/v3",
 		},
 		{
-			name: "https://github.com/go-kratos/kratos",
+			name: "https://github.com/apus-run/spine/v3",
 			args: args{
 				parent:  metadata.NewServerContext(context.Background(), metadata.Metadata{}),
 				carrier: propagation.HeaderCarrier{"X-Md-Service-Name": nil},

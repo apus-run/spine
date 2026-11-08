@@ -1,8 +1,8 @@
 ## Discovery Registry
 
-This module implements a `registry.Registrar` and `registry.Discovery` interface in kratos based `bilibili/discovery`.
+This module implements a `registry.Registrar` and `registry.Discovery` interface in spine based `bilibili/discovery`.
 
-[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/go-kratos/kratos/contrib/registry/discovery/v3)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/apus-run/spine/v3)
 
 ### Quick Start
 
@@ -10,7 +10,7 @@ This module implements a `registry.Registrar` and `registry.Discovery` interface
 
 ```go
 import (
-	"github.com/go-kratos/kratos/contrib/registry/discovery/v3"
+	"github.com/apus-run/spine/v3"
 )
 
 func main() {
@@ -26,15 +26,15 @@ func main() {
 	// construct srv instance
 	// ...
 
-	app := kratos.New(
-		kratos.Name("helloworld"),
-		kratos.Server(
+	app := spine.New(
+		spine.Name("helloworld"),
+		spine.Server(
 			httpSrv,
 			grpcSrv,
 		),
-		kratos.Metadata(map[string]string{"color": "gray"}),
+		spine.Metadata(map[string]string{"color": "gray"}),
 		// use Registrar
-		kratos.Registrar(r),
+		spine.Registrar(r),
 	)
 
 	if err := app.Run(); err != nil {
@@ -47,8 +47,8 @@ func main() {
 
 ```go
 import (
-	"github.com/go-kratos/kratos/contrib/registry/discovery/v3"
-	"github.com/go-kratos/kratos/v3/transport/grpc"
+	"github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3/transport/grpc"
 )
 
 func main() {

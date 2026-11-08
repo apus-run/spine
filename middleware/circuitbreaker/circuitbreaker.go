@@ -3,11 +3,11 @@ package circuitbreaker
 import (
 	"context"
 
-	"github.com/go-kratos/kratos/v3/errors"
-	internalbreaker "github.com/go-kratos/kratos/v3/internal/circuitbreaker"
-	"github.com/go-kratos/kratos/v3/internal/group"
-	"github.com/go-kratos/kratos/v3/middleware"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/errors"
+	internalbreaker "github.com/apus-run/spine/v3/internal/circuitbreaker"
+	"github.com/apus-run/spine/v3/internal/group"
+	"github.com/apus-run/spine/v3/middleware"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 // ErrNotAllowed is request failed due to circuit breaker triggered.

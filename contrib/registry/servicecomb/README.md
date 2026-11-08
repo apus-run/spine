@@ -10,8 +10,8 @@ import (
 	"log"
 
 	"github.com/go-chassis/sc-client"
-	"github.com/go-kratos/kratos/contrib/registry/servicecomb/v3"
-	"github.com/go-kratos/kratos/v3"
+	"github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3"
 )
 
 func main() {
@@ -22,9 +22,9 @@ func main() {
 		log.Panic(err)
 	}
 	r := servicecomb.NewRegistry(c)
-	app := kratos.New(
-		kratos.Name("helloServicecomb"),
-		kratos.Registrar(r),
+	app := spine.New(
+		spine.Name("helloServicecomb"),
+		spine.Registrar(r),
 	)
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
@@ -41,8 +41,8 @@ import (
 	"log"
 
 	"github.com/go-chassis/sc-client"
-	"github.com/go-kratos/kratos/contrib/registry/servicecomb/v3"
-	"github.com/go-kratos/kratos/v3/transport/grpc"
+	"github.com/apus-run/spine/v3"
+	"github.com/apus-run/spine/v3/transport/grpc"
 )
 
 func main() {

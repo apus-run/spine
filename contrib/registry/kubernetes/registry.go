@@ -22,16 +22,16 @@ import (
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/apus-run/spine/v3/registry"
 )
 
 // Defines the key name of specific fields
-// Kratos needs to cooperate with the following fields to run properly on Kubernetes:
-// kratos-service-id: define the ID of the service
-// kratos-service-app: define the name of the service
-// kratos-service-version: define the version of the service
-// kratos-service-metadata: define the metadata of the service
-// kratos-service-protocols: define the protocols of the service
+// Spine needs to cooperate with the following fields to run properly on Kubernetes:
+// spine-service-id: define the ID of the service
+// spine-service-app: define the name of the service
+// spine-service-version: define the version of the service
+// spine-service-metadata: define the metadata of the service
+// spine-service-protocols: define the protocols of the service
 //
 // Example Deployment:
 /*
@@ -50,13 +50,13 @@ template:
   metadata:
     labels:
       app: nginx
-      kratos-service-id: "56991810-c77f-4a95-8190-393efa9c1a61"
-      kratos-service-app: "nginx"
-      kratos-service-version: "v3.5.0"
+      spine-service-id: "56991810-c77f-4a95-8190-393efa9c1a61"
+      spine-service-app: "nginx"
+      spine-service-version: "v3.5.0"
     annotations:
-      kratos-service-protocols: |
+      spine-service-protocols: |
         {"80": "http"}
-      kratos-service-metadata: |
+      spine-service-metadata: |
         {"region": "sh", "zone": "sh001", "cluster": "pd"}
   spec:
     containers:
@@ -67,17 +67,17 @@ template:
 */
 const (
 	// LabelsKeyServiceID is used to define the ID of the service
-	LabelsKeyServiceID = "kratos-service-id"
+	LabelsKeyServiceID = "spine-service-id"
 	// LabelsKeyServiceName is used to define the name of the service
-	LabelsKeyServiceName = "kratos-service-app"
+	LabelsKeyServiceName = "spine-service-app"
 	// LabelsKeyServiceVersion is used to define the version of the service
-	LabelsKeyServiceVersion = "kratos-service-version"
+	LabelsKeyServiceVersion = "spine-service-version"
 	// AnnotationsKeyMetadata is used to define the metadata of the service
-	AnnotationsKeyMetadata = "kratos-service-metadata"
+	AnnotationsKeyMetadata = "spine-service-metadata"
 	// AnnotationsKeyProtocolMap is used to define the protocols of the service
-	// Through the value of this field, Kratos can obtain the application layer protocol corresponding to the port
+	// Through the value of this field, Spine can obtain the application layer protocol corresponding to the port
 	// Example value: {"80": "http", "8081": "grpc"}
-	AnnotationsKeyProtocolMap = "kratos-service-protocols"
+	AnnotationsKeyProtocolMap = "spine-service-protocols"
 )
 
 // The Registry simply implements service discovery based on Kubernetes

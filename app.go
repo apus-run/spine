@@ -1,4 +1,4 @@
-package kratos
+package spine
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/go-kratos/kratos/v3/log"
-	"github.com/go-kratos/kratos/v3/registry"
-	"github.com/go-kratos/kratos/v3/transport"
+	"github.com/apus-run/spine/v3/log"
+	"github.com/apus-run/spine/v3/registry"
+	"github.com/apus-run/spine/v3/transport"
 )
 
 // AppInfo is application context value.

@@ -66,8 +66,8 @@ type Event interface {
 <!--
 example:
 ```go
-msg := kafka.NewMessage("kratos", []byte("hello world"), map[string]string{
-		"user":  "kratos",
+msg := kafka.NewMessage("spine", []byte("hello world"), map[string]string{
+		"user":  "spine",
 		"phone": "123456",
 	})
 err := sender.Send(context.Background(), msg)

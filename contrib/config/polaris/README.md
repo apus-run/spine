@@ -6,7 +6,7 @@ import (
 
 	"github.com/polarismesh/polaris-go"
 
-	"github.com/go-kratos/kratos/contrib/config/polaris/v3"
+	"github.com/apus-run/spine/v3"
 )
 
 func main() {
