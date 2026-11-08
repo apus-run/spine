@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/gorilla/mux"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/protobuf/proto"
 
@@ -49,12 +48,13 @@ type EncodeResponseFunc func(http.ResponseWriter, *http.Request, any) error
 // EncodeErrorFunc is encode error func.
 type EncodeErrorFunc func(http.ResponseWriter, *http.Request, error)
 
-// DefaultRequestVars decodes the request vars to object.
+// DefaultRequestVars decodes the request vars to object. Variable names are
+// the business field names recorded at route registration; values are read
+// through Request.PathValue (decoded exactly once, D8).
 func DefaultRequestVars(r *http.Request, v any) error {
-	raws := mux.Vars(r)
-	vars := make(url.Values, len(raws))
-	for k, v := range raws {
-		vars[k] = []string{v}
+	vars := url.Values{}
+	if e, ok := r.Context().Value(routeVarsCtxKey{}).(*routeEntry); ok {
+		vars = e.values(r)
 	}
 	return bindQuery(vars, v)
 }

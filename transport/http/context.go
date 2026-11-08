@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/apus-run/spine/v3/middleware"
 	"github.com/apus-run/spine/v3/transport"
 )
@@ -70,12 +68,10 @@ func (c *wrapper) Header() http.Header {
 }
 
 func (c *wrapper) Vars() url.Values {
-	raws := mux.Vars(c.req)
-	vars := make(url.Values, len(raws))
-	for k, v := range raws {
-		vars[k] = []string{v}
+	if e, ok := c.req.Context().Value(routeVarsCtxKey{}).(*routeEntry); ok {
+		return e.values(c.req)
 	}
-	return vars
+	return url.Values{}
 }
 
 func (c *wrapper) Form() url.Values {

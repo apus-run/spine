@@ -1,8 +1,8 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
-	"path"
 )
 
 // WalkRouteFunc is the type of the function called for each route visited by Walk.
@@ -38,11 +38,17 @@ func (r *Router) Group(prefix string, filters ...FilterFunc) *Router {
 	newFilters := make([]FilterFunc, 0, len(r.filters)+len(filters))
 	newFilters = append(newFilters, r.filters...)
 	newFilters = append(newFilters, filters...)
-	return newRouter(path.Join(r.prefix, prefix), r.srv, newFilters...)
+	return newRouter(joinPath(r.prefix, prefix), r.srv, newFilters...)
 }
 
 // Handle registers a new route with a matcher for the URL path and method.
+// A method of "*" registers without a method constraint (matches every
+// method), preserving the previous Router.Handle("*", ...) behavior; an
+// empty method is rejected at registration time.
 func (r *Router) Handle(method, relativePath string, h HandlerFunc, filters ...FilterFunc) {
+	if method == "" {
+		panic(fmt.Sprintf("invalid method %q for route %q: use \"*\" to match all methods", method, relativePath))
+	}
 	next := http.Handler(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		ctx := &wrapper{router: r}
 		ctx.Reset(res, req)
@@ -52,10 +58,10 @@ func (r *Router) Handle(method, relativePath string, h HandlerFunc, filters ...F
 	}))
 	next = FilterChain(filters...)(next)
 	next = FilterChain(r.filters...)(next)
-	route := r.srv.router.Handle(path.Join(r.prefix, relativePath), next)
-	if method != "*" {
-		route.Methods(method)
+	if method == "*" {
+		method = ""
 	}
+	r.srv.register(method, r.srv.fullPath(joinPath(r.prefix, relativePath)), next)
 }
 
 // GET registers a new GET route for a path with matching handler in the router.

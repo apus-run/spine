@@ -188,7 +188,9 @@ func testClient(t *testing.T, srv *Server) {
 		{http.MethodPatch, "/index/1", http.StatusOK},
 		{http.MethodDelete, "/index/1", http.StatusOK},
 
-		{http.MethodGet, "/index/notfound", http.StatusNotFound},
+		// {id:[0-9]+} constraint is dropped in the ServeMux migration
+		// (audit R-6): {id} matches any single segment, so this is now 200.
+		{http.MethodGet, "/index/notfound", http.StatusOK},
 		{http.MethodGet, "/errors/cause", http.StatusBadRequest},
 		{http.MethodGet, "/test/prefix/123111", http.StatusOK},
 	}
@@ -373,18 +375,44 @@ func TestListener(t *testing.T) {
 }
 
 func TestNotFoundHandler(t *testing.T) {
-	mux := http.NewServeMux()
-	srv := NewServer(NotFoundHandler(mux))
-	if !reflect.DeepEqual(srv.router.NotFoundHandler, mux) {
-		t.Errorf("expected %v got %v", mux, srv.router.NotFoundHandler)
+	srv := NewServer(NotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("custom-not-found"))
+	})))
+	srv.HandleFunc("/index", h)
+	req := httptest.NewRequest(http.MethodGet, "/missing", nil)
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+	if w.Body.String() != "custom-not-found" {
+		t.Fatalf("expected custom body, got %q", w.Body.String())
+	}
+	// matched requests are not intercepted
+	req = httptest.NewRequest(http.MethodGet, "/index", nil)
+	w = httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
 	}
 }
 
 func TestMethodNotAllowedHandler(t *testing.T) {
-	mux := http.NewServeMux()
-	srv := NewServer(MethodNotAllowedHandler(mux))
-	if !reflect.DeepEqual(srv.router.MethodNotAllowedHandler, mux) {
-		t.Errorf("expected %v got %v", mux, srv.router.MethodNotAllowedHandler)
+	srv := NewServer(MethodNotAllowedHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("custom-method-not-allowed"))
+	})))
+	srv.Route("/api").GET("/users/{id}", func(Context) error { return nil })
+	req := httptest.NewRequest(http.MethodPost, "/api/users/1", nil)
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", w.Code)
+	}
+	if allow := w.Header().Get("Allow"); allow == "" {
+		t.Fatal("expected Allow header to be preserved")
+	}
+	if w.Body.String() != "custom-method-not-allowed" {
+		t.Fatalf("expected custom body, got %q", w.Body.String())
 	}
 }
 
