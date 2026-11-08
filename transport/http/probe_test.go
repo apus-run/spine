@@ -24,7 +24,6 @@ package http
 // network flakiness; redirect probes inspect Location/Allow directly.
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -168,16 +167,25 @@ func TestProbeB6_HeaderUnrelatedPath(t *testing.T) {
 	}
 }
 
-// B-7: registering the same route twice panics at registration (§14.4).
+// B-7: registering the same route twice keeps the first registration
+// silently, restoring the previous engine's behavior.
 func TestProbeB7_DuplicateRegistration(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("B-7: want panic on duplicate registration")
-		}
-	}()
 	srv := NewServer()
 	srv.HandleFunc("/dup", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("first")) })
 	srv.HandleFunc("/dup", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("second")) })
+	w := probeDo(srv, http.MethodGet, "/dup", nil)
+	if w.Code != http.StatusOK || w.Body.String() != "first" {
+		t.Fatalf("B-7: want 200 first, got %d %q", w.Code, w.Body.String())
+	}
+	// Structurally identical patterns with different wildcard names also
+	// keep the first registration (previous engine semantics).
+	srv2 := NewServer()
+	srv2.HandleFunc("/v1/{name}", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("one")) })
+	srv2.HandleFunc("/v1/{id}", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("two")) })
+	w = probeDo(srv2, http.MethodGet, "/v1/x", nil)
+	if w.Code != http.StatusOK || w.Body.String() != "one" {
+		t.Fatalf("B-7 structural: want 200 one, got %d %q", w.Code, w.Body.String())
+	}
 }
 
 // B-8 / B-14: every request carries a Transport; unmatched requests keep
@@ -284,8 +292,8 @@ func TestProbeB13_EncodedPathValues(t *testing.T) {
 		code int
 		vars string
 	}{
-		{"/v1/files/a%2Fb", http.StatusOK, "a/b"},  // D8: encoded slash matches one segment
-		{"/v1/files/a%25b", http.StatusOK, "a%b"},  // single decode
+		{"/v1/files/a%2Fb", http.StatusOK, "a/b"},     // D8: encoded slash matches one segment
+		{"/v1/files/a%25b", http.StatusOK, "a%b"},     // single decode
 		{"/v1/files/a%252Fb", http.StatusOK, "a%2Fb"}, // no double decode
 	} {
 		got = ""
@@ -334,17 +342,45 @@ func TestProbeStdlibRedirects(t *testing.T) {
 	}
 }
 
-// Old generator output (Gorilla regex patterns with multi-segment
-// constraints) must fail registration loudly instead of silently narrowing
-// to a single-segment wildcard.
-func TestProbeRejectLegacyRegexPatterns(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("legacy multi-segment regex pattern must panic at registration")
-		} else if !strings.Contains(fmt.Sprint(r), "regenerate") {
-			t.Fatalf("panic should point at regeneration, got: %v", r)
-		}
-	}()
+// Old generator output (Gorilla regex patterns) compiles at registration
+// time: multi-segment constraints become literal structure and "**"
+// becomes a multi wildcard with the prefix re-attached.
+func TestProbeLegacyRegexPatterns(t *testing.T) {
 	srv := NewServer()
-	srv.HandleFunc("/v1/{name:messages/[^/]+}", func(w http.ResponseWriter, r *http.Request) {})
+	var name string
+	srv.Route("/v1").GET("/legacy1/{name:messages/[^/]+}", func(ctx Context) error {
+		name = ctx.Vars().Get("name")
+		return nil
+	})
+	srv.Route("/v1").GET("/legacy2/{name:messages/.*}", func(ctx Context) error {
+		name = ctx.Vars().Get("name")
+		return nil
+	})
+	// Single-segment residual regexes keep their matching semantics as
+	// value validators.
+	srv.Route("/v1").GET("/legacy3/{id:[0-9]+}", func(ctx Context) error {
+		name = ctx.Vars().Get("id")
+		return nil
+	})
+
+	w := probeDo(srv, http.MethodGet, "/v1/legacy1/messages/a", nil)
+	if w.Code != 200 || name != "messages/a" {
+		t.Fatalf("legacy [^/]+: %d %q", w.Code, name)
+	}
+	w = probeDo(srv, http.MethodGet, "/v1/legacy1/messages/a/b", nil)
+	if w.Code != 404 {
+		t.Fatalf("legacy [^/]+ must stay single-segment: %d", w.Code)
+	}
+	w = probeDo(srv, http.MethodGet, "/v1/legacy2/messages/a/b", nil)
+	if w.Code != 200 || name != "messages/a/b" {
+		t.Fatalf("legacy .*: %d %q", w.Code, name)
+	}
+	w = probeDo(srv, http.MethodGet, "/v1/legacy3/42", nil)
+	if w.Code != 200 || name != "42" {
+		t.Fatalf("legacy validator match: %d %q", w.Code, name)
+	}
+	w = probeDo(srv, http.MethodGet, "/v1/legacy3/notfound", nil)
+	if w.Code != 404 {
+		t.Fatalf("legacy validator mismatch must 404: %d", w.Code)
+	}
 }

@@ -179,13 +179,14 @@ type Server struct {
 	strictSlash bool
 	prefix      string // PathPrefix option scope, composed into registrations
 
-	mux  *http.ServeMux // main router: all business routes register here
+	mux   *http.ServeMux // main router: all business routes register here
 	scope *http.ServeMux // optional prefix-scope entry gating header dispatch (nil when no PathPrefix)
 
-	headerRoutes     []headerRoute  // HandleHeader registrations, in registration order (D2)
-	routes           []*routeEntry  // Route Registry, in registration order
-	notFound         http.Handler   // custom 404 body (status preserved)
-	methodNotAllowed http.Handler   // custom 405 body (status + Allow preserved)
+	headerRoutes     []headerRoute          // HandleHeader registrations, in registration order (D2)
+	routes           []*routeEntry          // Route Registry, in registration order
+	sets             map[string]*bindingSet // registered patterns, keyed structurally
+	notFound         http.Handler           // custom 404 body (status preserved)
+	methodNotAllowed http.Handler           // custom 405 body (status + Allow preserved)
 }
 
 // NewServer creates an HTTP server by options.
@@ -202,6 +203,7 @@ func NewServer(opts ...ServerOption) *Server {
 		ene:         DefaultErrorEncoder,
 		strictSlash: true,
 		mux:         http.NewServeMux(),
+		sets:        make(map[string]*bindingSet),
 	}
 	for _, o := range opts {
 		o(srv)
@@ -271,15 +273,16 @@ func (s *Server) Handle(path string, h http.Handler) {
 // HandlePrefix registers a new route with a matcher for the URL path prefix.
 // The prefix matches on path-segment boundaries (decision D3): a prefix
 // "/api" serves "/api" itself and every "/api/..." path, but not "/apiary".
+// Subtree semantics are preserved (no "{$}" exactness mapping).
 func (s *Server) HandlePrefix(prefix string, h http.Handler) {
 	full := s.fullPath(prefix)
 	if full == "/" || strings.HasSuffix(full, "/") {
 		// A trailing-slash prefix is a single subtree pattern.
-		s.register("", full, h)
+		s.registerPattern(full, h)
 		return
 	}
-	s.register("", full, h)
-	s.register("", full+"/", h)
+	s.registerPattern(full, h)
+	s.registerPattern(full+"/", h)
 }
 
 // HandleFunc registers a new route with a matcher for the URL path.
@@ -310,71 +313,234 @@ func (s *Server) fullPath(p string) string {
 	return joinPath(s.prefix, p)
 }
 
-// register compiles a route, registers it on the main ServeMux and records
-// it in the Route Registry. Pattern conflicts and invalid patterns panic at
-// registration time (initialization) and are not silently ignored (§14.4).
-// method "" registers without a method constraint (matches all methods).
+// register compiles a route template (any accepted grammar, see
+// compileRoute) and registers it. method "" registers without a method
+// constraint (matches all methods). Invalid templates panic at
+// registration time; duplicate plain registrations keep the previous
+// engine's first-registration-wins behavior instead of panicking (B-7).
 func (s *Server) register(method, p string, h http.Handler) *routeEntry {
-	patternPath, bindings, err := compilePath(p)
+	cr, err := compileRoute(p)
 	if err != nil {
 		panic(err)
 	}
-	pattern := patternPath
+	return s.addBinding(method, cr.pattern, &routeBinding{
+		template:   p,
+		action:     cr.action,
+		bindings:   cr.bindings,
+		validators: cr.validators,
+		handler:    h,
+	})
+}
+
+// registerPattern registers a raw ServeMux pattern (no template
+// compilation, no "{$}" exactness mapping) - used by HandlePrefix, whose
+// subtree semantics must survive. Duplicate patterns keep the first
+// registration.
+func (s *Server) registerPattern(pattern string, h http.Handler) {
+	if _, ok := s.sets[pattern]; ok {
+		return // first registration wins (B-7 previous behavior)
+	}
+	set := &bindingSet{pattern: pattern, wildcardNames: patternWildcards(pattern)}
+	set.bindings = append(set.bindings, &routeBinding{template: pattern, handler: h})
+	s.sets[pattern] = set
+	s.mux.Handle(pattern, &bindingDispatcher{set: set})
+	s.routes = append(s.routes, &routeEntry{path: pattern, pattern: pattern})
+}
+
+// addBinding attaches one logical binding to the pattern it compiles to.
+// Patterns are keyed structurally (wildcard names normalized): bindings
+// that compile to the same structure share one ServeMux registration and
+// one dispatcher - custom actions join it, and duplicate plain
+// registrations keep the first (previous engine behavior, B-7).
+func (s *Server) addBinding(method, patternPath string, b *routeBinding) *routeEntry {
 	if method != "" {
 		for i := 0; i < len(method); i++ {
 			if c := method[i]; c == ' ' || c == '\t' || c == '/' {
-				panic(fmt.Sprintf("invalid method %q for route %q", method, p))
+				panic(fmt.Sprintf("invalid method %q for route %q", method, patternPath))
 			}
 		}
+	}
+	pattern := patternPath
+	if method != "" {
 		pattern = method + " " + patternPath
 	}
-	e := &routeEntry{method: method, path: p, pattern: pattern, bindings: bindings}
-	s.mux.Handle(pattern, s.routeHandler(e, h))
+	key := normalizePattern(pattern)
+	e := &routeEntry{method: method, path: b.template, pattern: pattern, bindings: b.bindings}
 	s.routes = append(s.routes, e)
+
+	set, ok := s.sets[key]
+	if ok {
+		if b.action == "" && !set.hasAction {
+			// Duplicate plain registration: recorded for WalkRoute but the
+			// first registration keeps serving (B-7).
+			return e
+		}
+		renameWildcards(b, set.wildcardNames)
+	} else {
+		set = &bindingSet{pattern: pattern, wildcardNames: patternWildcards(patternPath)}
+		s.sets[key] = set
+		s.mux.Handle(pattern, &bindingDispatcher{set: set})
+	}
+	set.bindings = append(set.bindings, b)
+	if b.action != "" {
+		set.hasAction = true
+	}
 	return e
 }
 
-// registerCompiled registers a pre-compiled pattern (generator output,
-// PRD §12.9) on the ServeMux once and records one registry entry per
-// logical binding sharing it. The pattern is not rewritten; wildcard
-// validity is enforced by the ServeMux.
-func (s *Server) registerCompiled(method, pattern string, templates []string, bindings [][]PathBinding, h http.Handler) {
-	if method != "" {
-		for i := 0; i < len(method); i++ {
-			if c := method[i]; c == ' ' || c == '\t' || c == '/' {
-				panic(fmt.Sprintf("invalid method %q for route %q", method, pattern))
-			}
-		}
-		pattern = method + " " + pattern
+// routeBinding is one logical binding served under a pattern: the handler
+// chain (filters already applied), the original template used as Transport
+// metadata, the variable bindings, an optional custom-verb action and any
+// residual value validators.
+type routeBinding struct {
+	template   string
+	action     string
+	bindings   []PathBinding
+	validators []valueValidator
+	handler    http.Handler
+}
+
+// bindingSet owns one ServeMux registration: every logical binding that
+// compiles to the same structural pattern dispatches through it.
+type bindingSet struct {
+	pattern       string // registered ServeMux pattern (first registration's names)
+	wildcardNames []string
+	bindings      []*routeBinding
+	hasAction     bool
+}
+
+// selectBinding picks the binding for a request: with actions, the last
+// wildcard capture is split on the last ":" and the suffix selects the
+// binding; the resource (suffix stripped) is returned for variable
+// composition. Without actions the single (first) binding serves
+// everything.
+func (s *bindingSet) selectBinding(r *http.Request) (*routeBinding, *string) {
+	if !s.hasAction {
+		return s.bindings[0], nil
 	}
-	s.mux.Handle(pattern, h)
-	for i, tpl := range templates {
-		e := &routeEntry{method: method, path: tpl, pattern: pattern}
-		if i < len(bindings) {
-			e.bindings = bindings[i]
+	raw := r.PathValue(lastName(s.wildcardNames))
+	resource, action := raw, ""
+	if i := strings.LastIndex(raw, ":"); i >= 0 {
+		resource, action = raw[:i], raw[i+1:]
+	}
+	for _, b := range s.bindings {
+		if b.action == action {
+			return b, &resource
 		}
-		s.routes = append(s.routes, e)
+	}
+	return nil, nil
+}
+
+// bindingDispatcher is the single handler registered on the ServeMux for
+// a pattern. It selects the binding (custom action), fills the Transport
+// metadata with the selected binding's template (S9.4: before filters),
+// validates residual regex constraints, exposes the composed variables and
+// runs the binding's handler chain. A request whose action matches no
+// binding is a 404, mirroring the previous per-route regex behavior.
+type bindingDispatcher struct {
+	set *bindingSet
+}
+
+func (d *bindingDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	b, resource := d.set.selectBinding(r)
+	if b == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if tr, ok := transport.FromServerContext(r.Context()); ok {
+		if htr, ok := tr.(*Transport); ok {
+			htr.operation = b.template
+			htr.pathTemplate = b.template
+		}
+	}
+	overrideName, overrideValue := "", ""
+	if resource != nil && len(d.set.wildcardNames) > 0 {
+		overrideName, overrideValue = lastName(d.set.wildcardNames), *resource
+	}
+	for _, v := range b.validators {
+		value := overrideValue
+		if v.wildcard != overrideName {
+			value = r.PathValue(v.wildcard)
+		}
+		if !v.re.MatchString(value) {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	if len(b.bindings) > 0 {
+		vars := composeValues(b.bindings, r, overrideName, overrideValue)
+		r = r.WithContext(context.WithValue(r.Context(), routeVarsCtxKey{}, vars))
+	}
+	b.handler.ServeHTTP(w, r)
+}
+
+// patternWildcards returns the wildcard names of a pattern path in order.
+func patternWildcards(pattern string) []string {
+	var names []string
+	for i := 0; i < len(pattern); {
+		if pattern[i] != '{' {
+			i++
+			continue
+		}
+		j := strings.IndexByte(pattern[i:], '}')
+		if j < 0 {
+			break
+		}
+		names = append(names, strings.TrimSuffix(pattern[i+1:i+j], "..."))
+		i += j + 1
+	}
+	return names
+}
+
+// normalizePattern replaces wildcard names with placeholders so templates
+// binding different field names at the same positions share one key.
+func normalizePattern(pattern string) string {
+	var b strings.Builder
+	for i := 0; i < len(pattern); {
+		c := pattern[i]
+		if c != '{' {
+			b.WriteByte(c)
+			i++
+			continue
+		}
+		j := strings.IndexByte(pattern[i:], '}')
+		if j < 0 {
+			b.WriteString(pattern[i:])
+			break
+		}
+		if strings.HasSuffix(pattern[i+1:i+j], "...") {
+			b.WriteString("{...}")
+		} else {
+			b.WriteString("{}")
+		}
+		i += j + 1
+	}
+	return b.String()
+}
+
+// renameWildcards rewrites a joining binding's wildcard names to the
+// registered pattern's names positionally, so variable composition reads
+// the wildcards the ServeMux actually set.
+func renameWildcards(b *routeBinding, names []string) {
+	if len(names) == 0 {
+		return
+	}
+	pos := 0
+	for bi := range b.bindings {
+		for wi, w := range b.bindings[bi].Wildcards {
+			if pos < len(names) && w != names[pos] {
+				b.bindings[bi].Wildcards[wi] = names[pos]
+			}
+			pos++
+		}
 	}
 }
 
-// routeHandler wraps a registered handler with the route metadata layer: it
-// fills the request Transport with the selected route's template (replacing
-// the initial "http.unmatched" values, D6) and exposes the route's variable
-// descriptors on the request context (PRD §5.5) before group/route filters
-// and the handler run.
-func (s *Server) routeHandler(e *routeEntry, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if tr, ok := transport.FromServerContext(r.Context()); ok {
-			if tr, ok := tr.(*Transport); ok {
-				tr.operation = e.path
-				tr.pathTemplate = e.path
-			}
-		}
-		if len(e.bindings) > 0 {
-			r = r.WithContext(context.WithValue(r.Context(), routeVarsCtxKey{}, e.values(r)))
-		}
-		next.ServeHTTP(w, r)
-	})
+func lastName(names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	return names[len(names)-1]
 }
 
 // transportHandler is the outermost request layer (PRD §4.2): it creates

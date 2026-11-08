@@ -188,9 +188,9 @@ func testClient(t *testing.T, srv *Server) {
 		{http.MethodPatch, "/index/1", http.StatusOK},
 		{http.MethodDelete, "/index/1", http.StatusOK},
 
-		// {id:[0-9]+} constraint is dropped in the ServeMux migration
-		// (audit R-6): {id} matches any single segment, so this is now 200.
-		{http.MethodGet, "/index/notfound", http.StatusOK},
+		// {id:[0-9]+} keeps its semantics through a value validator
+		// (compat): non-numeric segments stay 404.
+		{http.MethodGet, "/index/notfound", http.StatusNotFound},
 		{http.MethodGet, "/errors/cause", http.StatusBadRequest},
 		{http.MethodGet, "/test/prefix/123111", http.StatusOK},
 	}

@@ -1,12 +1,8 @@
 package http
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"strings"
-
-	"github.com/apus-run/spine/v3/transport"
 )
 
 // WalkRouteFunc is the type of the function called for each route visited by Walk.
@@ -83,57 +79,28 @@ type RouteBinding struct {
 }
 
 // HandleBindings registers one or more logical bindings that share a
-// pre-compiled ServeMux pattern. When the pattern matches, the binding
-// whose action suffix equals the request's is selected, its template fills
-// the Transport metadata and its variable values are exposed to the
-// request context — all before the group filters and handler run
-// (PRD §9.4, §12.6). A request whose suffix matches no binding gets a 404,
-// mirroring the previous per-route regex behavior. Wildcard names in the
-// pattern must be unique; the last wildcard carries the action suffix for
-// custom-verb routes.
+// pre-compiled ServeMux pattern (generator output, PRD §12.9). When the
+// pattern matches, the dispatcher selects the binding whose action suffix
+// equals the request's, fills the Transport metadata with its template and
+// exposes its variable values — all before the group filters and handler
+// run (PRD §9.4, §12.6). A request whose suffix matches no binding gets a
+// 404, mirroring the previous per-route regex behavior. The last wildcard
+// carries the action suffix for custom-verb routes.
 func (r *Router) HandleBindings(method, pattern string, bindings ...RouteBinding) {
 	if method == "" || method == "*" {
 		panic(fmt.Sprintf("invalid method %q for route %q: HandleBindings requires an explicit method", method, pattern))
 	}
-	handlers := make([]http.Handler, len(bindings))
-	for i := range bindings {
-		handlers[i] = r.handlerOf(bindings[i].Handler)
-	}
-	last := lastWildcardName(pattern)
-	inner := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		raw := req.PathValue(last)
-		resource, action := raw, ""
-		if i := strings.LastIndex(raw, ":"); i >= 0 {
-			resource, action = raw[:i], raw[i+1:]
-		}
-		for i, b := range bindings {
-			if b.Action != action {
-				continue
-			}
-			if tr, ok := transport.FromServerContext(req.Context()); ok {
-				if htr, ok := tr.(*Transport); ok {
-					htr.operation = b.Template
-					htr.pathTemplate = b.Template
-				}
-			}
-			if len(b.Bindings) > 0 {
-				vars := composeValues(b.Bindings, req, last, resource)
-				req = req.WithContext(context.WithValue(req.Context(), routeVarsCtxKey{}, vars))
-			}
-			handlers[i].ServeHTTP(w, req)
-			return
-		}
-		http.NotFound(w, req)
-	}))
-	inner = FilterChain(r.filters...)(inner)
 	full := r.srv.fullPath(joinPath(r.prefix, pattern))
-	templates := make([]string, len(bindings))
-	bindingVars := make([][]PathBinding, len(bindings))
-	for i, b := range bindings {
-		templates[i] = r.srv.fullPath(joinPath(r.prefix, b.Template))
-		bindingVars[i] = b.Bindings
+	for _, rb := range bindings {
+		h := r.handlerOf(rb.Handler)
+		h = FilterChain(r.filters...)(h)
+		r.srv.addBinding(method, full, &routeBinding{
+			template: r.srv.fullPath(joinPath(r.prefix, rb.Template)),
+			action:   rb.Action,
+			bindings: rb.Bindings,
+			handler:  h,
+		})
 	}
-	r.srv.registerCompiled(method, full, templates, bindingVars, inner)
 }
 
 // handlerOf wraps a spine handler with the request context and the error
@@ -146,20 +113,6 @@ func (r *Router) handlerOf(h HandlerFunc) http.Handler {
 			r.srv.ene(res, req, err)
 		}
 	})
-}
-
-// lastWildcardName returns the name of the final wildcard in a ServeMux
-// pattern path, or "" when the pattern has none.
-func lastWildcardName(pattern string) string {
-	i := strings.LastIndex(pattern, "{")
-	if i < 0 {
-		return ""
-	}
-	seg := pattern[i+1:]
-	if j := strings.IndexByte(seg, '}'); j >= 0 {
-		return strings.TrimSuffix(seg[:j], "...")
-	}
-	return ""
 }
 
 // GET registers a new GET route for a path with matching handler in the router.

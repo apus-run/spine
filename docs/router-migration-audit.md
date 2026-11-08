@@ -312,7 +312,61 @@ Side effects handled:
 Verification: root module build/vet/tests green on go1.27.3; every
 nested module builds.
 
-Remaining gate: the CI matrix (now Go 1.27.x) must pass on the PR. The
-per-version redirect assertions of §16.2 collapse to a single version
-line; the ServeMux-native redirects are expected to be 307 there (the
-301-on-1.25.x branch is retired with the old minimum).
+## 11. Revision: backward compatibility restored (2026-11-09)
+
+After the production-readiness review, the user directed two changes (and
+reconfirmed D1/D7/D8 semantics):
+
+### 11.1 Old generated code runs without regeneration
+
+`compileRoute` (route.go) now accepts every grammar the previous
+protoc-gen-go-http ever emitted, compiling at registration time:
+
+| Old registration | Compiles to | Behavior |
+|---|---|---|
+| `{id}` (plain) | `{id}` | unchanged |
+| `{book.name}` (dotted) | `{pN}` + field mapping | BindVars sees `book.name` |
+| `{name=books/*}` (google form) | `books/{pN}` + reassembly | full resource name |
+| `{name=messages/[^/]+}` (old regex) | `messages/{pN}`, single-segment | value `messages/…` |
+| `{name=messages/.*}` (old `**`) | `messages/{pN...}` + prefix | value `messages/…` |
+| `{id:[0-9]+}` (hand-written regex) | `{id}` + value validator | non-match → 404, semantics kept |
+| `…:publish` (custom verb) | shared pattern + action dispatch | see below |
+
+Custom actions registered as separate `Router.Handle` calls (the old
+generated shape) aggregate automatically: every binding that compiles to
+the same structural pattern joins one dispatcher keyed by the normalized
+pattern (wildcard names replaced by placeholders), with positional
+wildcard renaming for bindings that used different field names. A request
+whose suffix matches no binding is a 404, as before. The `[^/]+` atom
+itself contains a slash; the constraint splitter keeps it (and character
+classes) atomic.
+
+### 11.2 Restored previous-engine behaviors
+
+- **Duplicate registrations keep the first** (B-7 old behavior): plain
+  duplicates — including structurally identical patterns with different
+  wildcard names — no longer panic; they are recorded for WalkRoute while
+  the first registration keeps serving. §14.4's expose-at-init stance is
+  superseded by this user decision.
+- **Exact root and trailing-slash routes**: registrations ending in "/"
+  (including "/") compile to `{$}`-terminated patterns, so `GET /`
+  matches only `/` again and `/api/` matches only `/api/`. Subtree
+  behavior remains the province of `HandlePrefix`. The ServeMux's own
+  bridge redirect for `{$}` patterns (`/api` → `/api/`, 301 on Go 1.25.x
+  / 307 on 1.26+) is a native redirect passed through per D5.
+
+### 11.3 Kept as decided
+
+D1 (405 + Allow), D7 (HEAD matches GET), D8 (%2F single-segment match)
+stay — reconfirmed by the user. D3 (prefix segment boundary) cannot be
+restored without a custom routing engine (ADR-002) and remains a
+documented difference.
+
+Verification: transport/http suite (including the new compat_test.go
+matrix: old-grammar routes, structural duplicates, exact root/trailing
+slash, mixed old/new registrations), `go test -race`, full repo tests and
+the generator module all pass. Regenerating `*_http.pb.go` is now
+recommended (compiled-at-generation bindings are slightly leaner) but no
+longer required for correctness.
+
+Remaining gate: the CI matrix (Go 1.27.x) must pass on the PR.

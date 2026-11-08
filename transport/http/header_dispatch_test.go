@@ -15,8 +15,8 @@ import (
 )
 
 type headerMatrix struct {
-	srv     *Server
-	hits    *[]string // names of handlers that ran, in order
+	srv      *Server
+	hits     *[]string // names of handlers that ran, in order
 	headerOp *string
 }
 
