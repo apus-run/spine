@@ -85,10 +85,14 @@ type RouteBinding struct {
 // exposes its variable values — all before the group filters and handler
 // run (PRD §9.4, §12.6). A request whose suffix matches no binding gets a
 // 404, mirroring the previous per-route regex behavior. The last wildcard
-// carries the action suffix for custom-verb routes.
+// carries the action suffix for custom-verb routes. A method of "*" matches
+// every HTTP method, consistently with Router.Handle.
 func (r *Router) HandleBindings(method, pattern string, bindings ...RouteBinding) {
-	if method == "" || method == "*" {
-		panic(fmt.Sprintf("invalid method %q for route %q: HandleBindings requires an explicit method", method, pattern))
+	if method == "" {
+		panic(fmt.Sprintf("invalid method %q for route %q: use \"*\" to match all methods", method, pattern))
+	}
+	if method == "*" {
+		method = ""
 	}
 	full := r.srv.fullPath(joinPath(r.prefix, pattern))
 	for _, rb := range bindings {

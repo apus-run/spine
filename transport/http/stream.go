@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/grpc"
@@ -29,9 +31,12 @@ import (
 const (
 	sseContentType = "text/event-stream"
 
-	websocketControlPrefix = "\x1e"
-	websocketControlEnd    = websocketControlPrefix + "end"
-	websocketControlError  = websocketControlPrefix + "error:"
+	websocketControlPrefix     = "\x1e"
+	websocketControlEnd        = websocketControlPrefix + "end"
+	websocketControlError      = websocketControlPrefix + "error:"
+	websocketControlStatus     = websocketControlPrefix + "status:"
+	websocketErrorFormatHeader = "X-Spine-Stream-Errors"
+	websocketErrorFormatJSON   = "json-v1"
 )
 
 type streamMode int
@@ -274,7 +279,7 @@ func (s *serverStream) RecvMsg(m any) error {
 	if s.mode != streamModeWebSocket {
 		return io.EOF
 	}
-	return readWebSocketMessage(s.conn, m, s.decoder)
+	return readWebSocketMessage(s.conn, m, s.decoder, false)
 }
 
 func (s *serverStream) Close(err error) error {
@@ -293,8 +298,15 @@ func (s *serverStream) Close(err error) error {
 			return err
 		}
 		if err != nil {
-			_ = s.writeWebSocketControl(websocketControlError + err.Error())
-			_ = s.writeWebSocketClose(websocket.CloseInternalServerErr, err.Error())
+			status := kerrors.FromError(err)
+			message := websocketControlError + status.Message
+			if s.req != nil && s.req.Header.Get(websocketErrorFormatHeader) == websocketErrorFormatJSON {
+				if data, encodeErr := json.Marshal(status); encodeErr == nil {
+					message = websocketControlStatus + string(data)
+				}
+			}
+			_ = s.writeWebSocketControl(message)
+			_ = s.writeWebSocketClose(websocket.CloseInternalServerErr, status.Message)
 			_ = s.conn.Close()
 			return nil
 		}
@@ -351,7 +363,7 @@ func (s *serverStream) writeWebSocketMessage(m any) error {
 	}
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
-	return s.conn.WriteMessage(websocket.TextMessage, data)
+	return s.conn.WriteMessage(websocketMessageType(m, s.encoder), data)
 }
 
 func (s *serverStream) writeWebSocketControl(message string) error {
@@ -361,6 +373,15 @@ func (s *serverStream) writeWebSocketControl(message string) error {
 }
 
 func (s *serverStream) writeWebSocketClose(code int, text string) error {
+	// Close frames allow 123 bytes after the two-byte code and require UTF-8.
+	const maxCloseReason = 123
+	text = strings.ToValidUTF8(text, "\uFFFD")
+	if len(text) > maxCloseReason {
+		text = text[:maxCloseReason]
+		for !utf8.ValidString(text) {
+			text = text[:len(text)-1]
+		}
+	}
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 	msg := websocket.FormatCloseMessage(code, text)
@@ -494,6 +515,7 @@ type websocketClientStream struct {
 	closeOnce  sync.Once
 	closeErr   error
 	writeMu    sync.Mutex
+	stopCancel func() bool
 }
 
 func (s *websocketClientStream) Header() (metadata.MD, error) {
@@ -548,14 +570,21 @@ func (s *websocketClientStream) SendMsg(m any) error {
 	}
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
-	if err := s.checkSendOpen(); err != nil {
+	if err = s.checkSendOpen(); err != nil {
 		return err
 	}
-	return s.conn.WriteMessage(websocket.TextMessage, data)
+	err = s.conn.WriteMessage(websocketMessageType(m, s.encoder), data)
+	if err != nil && s.Context().Err() != nil {
+		return s.Context().Err()
+	}
+	return err
 }
 
 func (s *websocketClientStream) RecvMsg(m any) error {
-	if err := readWebSocketMessage(s.conn, m, s.decoder); err != nil {
+	if err := readWebSocketMessage(s.conn, m, s.decoder, true); err != nil {
+		if ctxErr := s.Context().Err(); ctxErr != nil {
+			err = ctxErr
+		}
 		doneErr := err
 		if stderrors.Is(err, io.EOF) {
 			doneErr = nil
@@ -577,7 +606,12 @@ func (s *websocketClientStream) close(err error) error {
 		s.mu.Lock()
 		s.closed = true
 		s.sendClosed = true
+		stopCancel := s.stopCancel
+		s.stopCancel = nil
 		s.mu.Unlock()
+		if stopCancel != nil {
+			stopCancel()
+		}
 		if s.done != nil {
 			s.done(err)
 		}
@@ -590,6 +624,9 @@ func (s *websocketClientStream) close(err error) error {
 }
 
 func (s *websocketClientStream) checkSendOpen() error {
+	if err := s.Context().Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	switch {
@@ -680,8 +717,9 @@ func (client *Client) WebSocket(ctx context.Context, path string, opts ...CallOp
 	url := fmt.Sprintf("%s://%s%s", scheme, client.target.Authority, path)
 	header := stdhttp.Header{}
 	if c.headerCarrier != nil {
-		header = *c.headerCarrier
+		header = (*c.headerCarrier).Clone()
 	}
+	header.Set(websocketErrorFormatHeader, websocketErrorFormatJSON)
 	if c.accept != "" {
 		header.Set("Accept", c.accept)
 	}
@@ -736,6 +774,11 @@ func (client *Client) WebSocket(ctx context.Context, path string, opts ...CallOp
 			}
 		}
 		if dialErr != nil {
+			if res != nil && res.StatusCode != stdhttp.StatusSwitchingProtocols {
+				if responseErr := client.opts.errorDecoder(ctx, res); responseErr != nil {
+					dialErr = responseErr
+				}
+			}
 			if res != nil && res.Body != nil {
 				_ = res.Body.Close()
 			}
@@ -751,7 +794,7 @@ func (client *Client) WebSocket(ctx context.Context, path string, opts ...CallOp
 		if res != nil && res.Body != nil {
 			_ = res.Body.Close()
 		}
-		return &websocketClientStream{
+		stream := &websocketClientStream{
 			ctx:     ctx,
 			conn:    conn,
 			header:  resHeader,
@@ -762,7 +805,17 @@ func (client *Client) WebSocket(ctx context.Context, path string, opts ...CallOp
 					done(ctx, selector.DoneInfo{Err: err})
 				}
 			},
-		}, nil
+		}
+		// Closing the socket first also interrupts a blocked writer before
+		// close waits for its write lock. Synchronize callback registration with
+		// cleanup because the context may already be canceled.
+		stream.mu.Lock()
+		stream.stopCancel = context.AfterFunc(ctx, func() {
+			_ = conn.Close()
+			_ = stream.close(ctx.Err())
+		})
+		stream.mu.Unlock()
+		return stream, nil
 	}
 	var p selector.Peer
 	ctx = selector.NewPeerContext(ctx, &p)
@@ -806,7 +859,7 @@ func marshalStreamMessage(v any, codec encoding.Codec) ([]byte, error) {
 	if codec == nil {
 		codec = defaultStreamCodec()
 	}
-	return codec.Marshal(v)
+	return encodeWithCodec(codec, v)
 }
 
 func unmarshalStreamMessage(data []byte, v any, codec encoding.Codec) error {
@@ -817,10 +870,19 @@ func unmarshalStreamMessage(data []byte, v any, codec encoding.Codec) error {
 	if codec == nil {
 		codec = defaultStreamCodec()
 	}
-	return codec.Unmarshal(data, v)
+	return decodeWithCodec(codec, data, v)
 }
 
-func readWebSocketMessage(conn *websocket.Conn, m any, codec encoding.Codec) error {
+// Binary payloads must not share the text control-message namespace or be
+// constrained to valid UTF-8. Existing JSON/protojson messages remain text.
+func websocketMessageType(message any, codec encoding.Codec) int {
+	if _, ok := httpBody(message); ok || codec != nil && codec.Name() == "proto" {
+		return websocket.BinaryMessage
+	}
+	return websocket.TextMessage
+}
+
+func readWebSocketMessage(conn *websocket.Conn, m any, codec encoding.Codec, statusErrors bool) error {
 	for {
 		messageType, data, err := conn.ReadMessage()
 		if err != nil {
@@ -832,10 +894,22 @@ func readWebSocketMessage(conn *websocket.Conn, m any, codec encoding.Codec) err
 		if messageType != websocket.TextMessage && messageType != websocket.BinaryMessage {
 			continue
 		}
+		if messageType == websocket.BinaryMessage {
+			return unmarshalStreamMessage(data, m, codec)
+		}
 		text := string(data)
 		switch {
 		case text == websocketControlEnd:
 			return io.EOF
+		case strings.HasPrefix(text, websocketControlStatus):
+			if !statusErrors {
+				return stderrors.New("unexpected WebSocket status control from client")
+			}
+			var status kerrors.Error
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(text, websocketControlStatus)), &status); err != nil {
+				return fmt.Errorf("invalid WebSocket error status: %w", err)
+			}
+			return &status
 		case strings.HasPrefix(text, websocketControlError):
 			return stderrors.New(strings.TrimPrefix(text, websocketControlError))
 		default:
@@ -846,6 +920,7 @@ func readWebSocketMessage(conn *websocket.Conn, m any, codec encoding.Codec) err
 
 func streamCodecFromCallInfo(c callInfo, names ...string) encoding.Codec {
 	header := stdhttp.Header{}
+	header.Set(websocketErrorFormatHeader, websocketErrorFormatJSON)
 	if c.accept != "" {
 		header.Set("Accept", c.accept)
 	}

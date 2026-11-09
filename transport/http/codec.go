@@ -12,12 +12,17 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/apus-run/spine/v3/encoding"
+	protojsoncodec "github.com/apus-run/spine/v3/encoding/protojson"
 	"github.com/apus-run/spine/v3/errors"
 	"github.com/apus-run/spine/v3/internal/httputil"
 )
 
 // SupportPackageIsVersion3 These constants should not be referenced from any other code.
 const SupportPackageIsVersion3 = true
+
+// SupportPackageIsVersion4 identifies runtimes supporting generated field
+// projections in unary and streaming response decoders.
+const SupportPackageIsVersion4 = true
 
 const defaultHTTPBodyContentType = "application/octet-stream"
 
@@ -117,7 +122,7 @@ func DefaultResponseEncoder(w http.ResponseWriter, r *http.Request, v any) error
 		return nil
 	}
 	codec, _ := CodecForRequest(r, "Accept")
-	data, err := codec.Marshal(v)
+	data, err := encodeWithCodec(codec, v)
 	if err != nil {
 		return err
 	}
@@ -177,9 +182,19 @@ func httpBody(v any) (*httpbody.HttpBody, bool) {
 	}
 }
 
+func encodeWithCodec(codec encoding.Codec, v any) ([]byte, error) {
+	if field, ok := v.(*fieldBody); ok && codec.Name() == protojsoncodec.Name {
+		return field.MarshalJSON()
+	}
+	return codec.Marshal(v)
+}
+
 func decodeWithCodec(codec encoding.Codec, data []byte, v any) error {
+	if field, ok := v.(*fieldBody); ok && codec.Name() == protojsoncodec.Name {
+		return field.UnmarshalJSON(data)
+	}
 	switch codec.Name() {
-	case "proto", "protojson":
+	case "proto", protojsoncodec.Name:
 	default:
 		return codec.Unmarshal(data, v)
 	}
