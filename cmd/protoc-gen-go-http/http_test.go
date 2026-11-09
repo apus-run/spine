@@ -411,3 +411,12 @@ func TestHTTPTemplateStreamsAndHTTPBody(t *testing.T) {
 		t.Fatalf("scalar named body should not emit WithStreamBodyField:\n%s", got)
 	}
 }
+
+func TestExactRootAndTrailingSlash(t *testing.T) {
+	for _, tpl := range []string{"/", "/v1/items/"} {
+		cp := mustCompile(t, tpl)
+		if cp.Path != tpl+"{$}" {
+			t.Errorf("%q compiled to %q, want exact path", tpl, cp.Path)
+		}
+	}
+}

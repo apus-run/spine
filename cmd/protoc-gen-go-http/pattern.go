@@ -122,6 +122,9 @@ func compilePattern(tpl string) (*compiledPattern, error) {
 		i += end + 1
 	}
 	cp.Path = path.String()
+	if strings.HasSuffix(cp.Path, "/") {
+		cp.Path += "{$}"
+	}
 	return cp, nil
 }
 
