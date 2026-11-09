@@ -97,6 +97,15 @@ jobs:
         run: |
           cd cmd/spine
           go build ./...
+          go test -race ./...
+        env:
+          GOTOOLCHAIN: auto
+
+      - name: Errors generator
+        run: |
+          cd cmd/protoc-gen-go-errors
+          go build ./...
+          go test -race ./...
         env:
           GOTOOLCHAIN: auto
 

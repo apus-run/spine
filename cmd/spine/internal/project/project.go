@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,7 +25,7 @@ var CmdNew = &cobra.Command{
 	Use:   "new",
 	Short: "Create a service template",
 	Long:  "Create a service project using the repository template. Example: kratos new helloworld",
-	Run:   run,
+	RunE:  run,
 }
 
 var (
@@ -43,16 +42,16 @@ func init() {
 	CmdNew.Flags().BoolVarP(&nomod, "nomod", "", nomod, "retain go mod")
 }
 
-func run(_ *cobra.Command, args []string) {
+func run(cmd *cobra.Command, args []string) error {
 	wd, err := os.Getwd()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	t, err := time.ParseDuration(timeout)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), t)
+	ctx, cancel := context.WithTimeout(cmd.Context(), t)
 	defer cancel()
 	name := ""
 	if len(args) == 0 {
@@ -61,8 +60,11 @@ func run(_ *cobra.Command, args []string) {
 			Help:    "Created project name.",
 		}
 		err = survey.AskOne(prompt, &name)
-		if err != nil || name == "" {
-			return
+		if err != nil {
+			return err
+		}
+		if name == "" {
+			return fmt.Errorf("project name cannot be empty")
 		}
 	} else {
 		name = args[0]
@@ -76,8 +78,7 @@ func run(_ *cobra.Command, args []string) {
 	} else {
 		repoURL, err = selectRepo()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31mERROR: failed to select repo(%s)\033[m\n", err.Error())
-			return
+			return fmt.Errorf("select template: %w", err)
 		}
 	}
 	go func() {
@@ -109,15 +110,9 @@ func run(_ *cobra.Command, args []string) {
 	}()
 	select {
 	case <-ctx.Done():
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			fmt.Fprint(os.Stderr, "\033[31mERROR: project creation timed out\033[m\n")
-			return
-		}
-		fmt.Fprintf(os.Stderr, "\033[31mERROR: failed to create project(%s)\033[m\n", ctx.Err().Error())
+		return fmt.Errorf("create project: %w", ctx.Err())
 	case err = <-done:
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31mERROR: Failed to create project(%s)\033[m\n", err.Error())
-		}
+		return err
 	}
 }
 
@@ -196,7 +191,7 @@ func selectRepo() (string, error) {
 		}),
 	)
 	if err := form.Run(); err != nil {
-		panic(err)
+		return "", err
 	}
 	if choice == "custom" {
 		return strings.TrimSpace(customURL), nil

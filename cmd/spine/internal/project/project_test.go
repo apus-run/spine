@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -14,10 +15,11 @@ import (
 // TestCmdNew tests the `kratos new` command.
 func TestCmdNew(t *testing.T) {
 	cwd := changeCurrentDir(t)
+	template := projectFixture(t)
 	projectName := "helloworld"
 
 	// create a new project
-	CmdNew.SetArgs([]string{projectName})
+	CmdNew.SetArgs([]string{projectName, "--repo", template})
 	if err := CmdNew.Execute(); err != nil {
 		t.Fatalf("executing command: %v", err)
 	}
@@ -43,15 +45,16 @@ func TestCmdNew(t *testing.T) {
 // TestCmdNewNoMod tests the `kratos new` command with the --nomod flag.
 func TestCmdNewNoMod(t *testing.T) {
 	cwd := changeCurrentDir(t)
+	template := projectFixture(t)
 
 	// create a new project
-	CmdNew.SetArgs([]string{"project"})
+	CmdNew.SetArgs([]string{"project", "--repo", template})
 	if err := CmdNew.Execute(); err != nil {
 		t.Fatalf("executing command: %v", err)
 	}
 
 	// add new app with --nomod flag
-	CmdNew.SetArgs([]string{"--nomod", "project/app/user"})
+	CmdNew.SetArgs([]string{"--nomod", "project/app/user", "--repo", template})
 	if err := CmdNew.Execute(); err != nil {
 		t.Fatalf("executing command: %v", err)
 	}
@@ -141,4 +144,63 @@ func changeCurrentDir(t *testing.T) string {
 	})
 
 	return tmp
+}
+
+// Use a local template so command tests require neither a TTY nor network.
+func projectFixture(t *testing.T) string {
+	t.Helper()
+	oldRepo, oldBranch, oldTimeout, oldNoMod := repo, branch, timeout, nomod
+	repo, branch, timeout, nomod = "", "", "60s", false
+	t.Cleanup(func() { repo, branch, timeout, nomod = oldRepo, oldBranch, oldTimeout, oldNoMod; CmdNew.SetArgs(nil) })
+	dir := t.TempDir()
+	files := map[string]string{
+		"go.mod":             "module example.com/template\n\ngo 1.27.3\n",
+		"go.sum":             "",
+		"README.md":          "test template\n",
+		"cmd/server/main.go": "package main\nfunc main() {}\n",
+		"cmd/server/wire.go": `package main
+import _ "example.com/template/internal/biz"
+`,
+		"internal/biz/biz.go": "package biz\n",
+	}
+	for name, content := range files {
+		file := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{
+		{"init", "-q", "-b", "main"},
+		{"add", "."},
+		{"-c", "user.name=Spine Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git: %v %s", err, out)
+		}
+	}
+	cache := base.NewRepo(dir, "").Path()
+	t.Cleanup(func() {
+		if err := os.RemoveAll(cache); err != nil {
+			t.Error(err)
+		}
+	})
+	return dir
+}
+
+func TestCmdNewReturnsErrors(t *testing.T) {
+	changeCurrentDir(t)
+	template := projectFixture(t)
+	CmdNew.SetArgs([]string{"example", "--repo", template, "--timeout", "invalid"})
+	if err := CmdNew.Execute(); err == nil {
+		t.Fatal("invalid timeout must return an error")
+	}
+	CmdNew.SetArgs([]string{"example", "--repo", filepath.Join(t.TempDir(), "missing"), "--timeout", "5s"})
+	if err := CmdNew.Execute(); err == nil {
+		t.Fatal("template failure must return an error")
+	}
 }
