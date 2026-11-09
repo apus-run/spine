@@ -28,9 +28,12 @@ jobs:
       matrix: ${{ fromJson(needs.resolve-modules.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
-      - name: Lint
-        uses: golangci/golangci-lint-action@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
         with:
-          version: v2.12.2
-          working-directory: ${{ matrix.workdir }}
-          skip-cache: true
+          go-version-file: go.mod
+      - name: Build pinned linter with the supported Go toolchain
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+      - name: Lint
+        working-directory: ${{ matrix.workdir }}
+        run: golangci-lint run --timeout=5m
