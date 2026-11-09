@@ -49,10 +49,14 @@ type methodDesc struct {
 	BodyQueryName        string
 	BodyHTTPBody         bool
 	BodyMessage          bool
+	BodyJSON             bool
 	ResponseBody         string
+	ResponseBodyField    string
 	ResponseBodyHTTPBody bool
+	ResponseBodyJSON     bool
 	ReplyHTTPBody        bool
 	ClientStreaming      bool
+	StreamNeedsRequest   bool
 	ServerStreaming      bool
 }
 

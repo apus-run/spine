@@ -23,11 +23,11 @@ type {{.ServiceType}}HTTPServer interface {
 func Register{{$svrType}}HTTPServer(s *http.Server, srv {{$svrType}}HTTPServer) {
 	r := s.Route("/")
 	{{- range .Groups}}
-	r.HandleBindings("{{.Method}}", "{{.Pattern}}"{{range .Bindings}},
+	r.HandleBindings({{printf "%q" .Method}}, {{printf "%q" .Pattern}}{{range .Bindings}},
 		http.RouteBinding{
-			Template: "{{.PathTemplate}}",
+			Template: {{printf "%q" .PathTemplate}},
 			{{- if .Action}}
-			Action: "{{.Action}}",
+			Action: {{printf "%q" .Action}},
 			{{- end}}
 			{{- if .BindingsCode}}
 			Bindings: {{.BindingsCode}},
@@ -43,9 +43,23 @@ type {{$svrType}}_{{.Name}}HTTPServer struct {
 	http.ServerStream
 }
 
+func (x *{{$svrType}}_{{.Name}}HTTPServer) SendMsg(value interface{}) error {
+ m, ok := value.(*{{.Reply}})
+ if !ok || m == nil { return fmt.Errorf("expected *{{.Reply}}, got %T", value) }
+ return x.ServerStream.SendMsg({{if .ResponseBodyJSON}}http.FieldBody(m, {{printf "%q" .ResponseBodyField}}){{else}}m{{.ResponseBody}}{{end}})
+}
+
+{{- if .ClientStreaming}}
+func (x *{{$svrType}}_{{.Name}}HTTPServer) RecvMsg(value interface{}) error {
+ m, ok := value.(*{{.Request}})
+ if !ok || m == nil { return fmt.Errorf("expected *{{.Request}}, got %T", value) }
+ return x.ServerStream.Recv(m)
+}
+{{- end}}
+
 {{- if .ServerStreaming}}
 func (x *{{$svrType}}_{{.Name}}HTTPServer) Send(m *{{.Reply}}) error {
-	return x.ServerStream.Send(m)
+	return x.ServerStream.Send({{if .ResponseBodyJSON}}http.FieldBody(m, {{printf "%q" .ResponseBodyField}}){{else}}m{{.ResponseBody}}{{end}})
 }
 {{- end}}
 
@@ -61,7 +75,7 @@ func (x *{{$svrType}}_{{.Name}}HTTPServer) Recv() (*{{.Request}}, error) {
 
 {{- if and .ClientStreaming (not .ServerStreaming)}}
 func (x *{{$svrType}}_{{.Name}}HTTPServer) SendAndClose(m *{{.Reply}}) error {
-	return x.ServerStream.SendAndClose(m)
+	return x.ServerStream.SendAndClose({{if .ResponseBodyJSON}}http.FieldBody(m, {{printf "%q" .ResponseBodyField}}){{else}}m{{.ResponseBody}}{{end}})
 }
 {{- end}}
 {{- end}}
@@ -71,7 +85,7 @@ func (x *{{$svrType}}_{{.Name}}HTTPServer) SendAndClose(m *{{.Reply}}) error {
 func _{{$svrType}}_{{.Name}}{{.Num}}_HTTP_Handler(srv {{$svrType}}HTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
 		{{- if .ClientStreaming}}
-		stream, err := http.NewWebSocketServerStream(ctx{{if .BodyMessage}}, http.WithStreamBodyField("{{.BodyField}}"){{end}})
+		stream, err := http.NewWebSocketServerStream(ctx{{if .BodyMessage}}, http.WithStreamBodyField({{printf "%q" .BodyField}}){{end}})
 		if err != nil {
 			return err
 		}
@@ -85,7 +99,7 @@ func _{{$svrType}}_{{.Name}}{{.Num}}_HTTP_Handler(srv {{$svrType}}HTTPServer) fu
 		{{- else if .ServerStreaming}}
 		var in {{.Request}}
 		{{- if .HasBody}}
-		if err := ctx.Bind(&in{{.Body}}); err != nil {
+		if err := ctx.Bind({{if .BodyJSON}}http.FieldBody(&in, {{printf "%q" .BodyField}}){{else}}&in{{.Body}}{{end}}); err != nil {
 			return err
 		}
 		{{- end}}
@@ -114,7 +128,7 @@ func _{{$svrType}}_{{.Name}}{{.Num}}_HTTP_Handler(srv {{$svrType}}HTTPServer) fu
 		{{- else}}
 		var in {{.Request}}
 		{{- if .HasBody}}
-		if err := ctx.Bind(&in{{.Body}}); err != nil {
+		if err := ctx.Bind({{if .BodyJSON}}http.FieldBody(&in, {{printf "%q" .BodyField}}){{else}}&in{{.Body}}{{end}}); err != nil {
 			return err
 		}
 		{{- end}}
@@ -144,7 +158,7 @@ func _{{$svrType}}_{{.Name}}{{.Num}}_HTTP_Handler(srv {{$svrType}}HTTPServer) fu
 		{{- if or .ReplyHTTPBody .ResponseBodyHTTPBody}}
 		return ctx.Blob(200, http.BodyContentType(reply{{.ResponseBody}}), reply{{.ResponseBody}}.GetData())
 		{{- else}}
-		return ctx.Result(200, reply{{.ResponseBody}})
+		return ctx.Result(200, {{if .ResponseBodyJSON}}http.FieldBody(reply, {{printf "%q" .ResponseBodyField}}){{else}}reply{{.ResponseBody}}{{end}})
 		{{- end}}
 		{{- end}}
 	}
@@ -179,6 +193,7 @@ func New{{.ServiceType}}HTTPClient (client *http.Client) {{.ServiceType}}HTTPCli
 type {{$svrType}}_{{.Name}}HTTPClient struct {
 	http.ClientStream
 	{{- if .ClientStreaming}}
+ mu sync.Mutex
 	ctx context.Context
 	cc *http.Client
 	pattern string
@@ -188,12 +203,19 @@ type {{$svrType}}_{{.Name}}HTTPClient struct {
 
 {{- if .ClientStreaming}}
 func (x *{{$svrType}}_{{.Name}}HTTPClient) open(m *{{.Request}}) error {
+ x.mu.Lock()
+ defer x.mu.Unlock()
 	if x.ClientStream != nil {
 		return nil
 	}
+ {{- if .StreamNeedsRequest}}
+ if m == nil { return fmt.Errorf("send the initial request before opening a parameterized stream") }
+ {{- end}}
 	{{- if .BodyHTTPBody}}
+ contentType := http.BodyContentType(nil)
+ if m != nil { contentType = http.BodyContentType(m{{.Body}}) }
 	opts := append([]http.CallOption{
-		http.ContentType(http.BodyContentType(m)),
+		http.ContentType(contentType),
 	}, x.opts...)
 	{{- else}}
 	opts := x.opts
@@ -202,7 +224,7 @@ func (x *{{$svrType}}_{{.Name}}HTTPClient) open(m *{{.Request}}) error {
 		{{- if or (eq .BodyField "*") (eq .BodyField "")}}
 	path := http.BuildPath(x.pattern, m)
 		{{- else}}
-	path := http.BuildPath(x.pattern, m, http.WithQueryParams(), http.WithOmitFields("{{.BodyQueryName}}"))
+	path := http.BuildPath(x.pattern, m, http.WithQueryParams(), http.WithOmitFields({{printf "%q" .BodyQueryName}}))
 		{{- end}}
 	{{- else}}
 	path := http.BuildPath(x.pattern, m, http.WithQueryParams())
@@ -215,6 +237,30 @@ func (x *{{$svrType}}_{{.Name}}HTTPClient) open(m *{{.Request}}) error {
 	return nil
 }
 
+func (x *{{$svrType}}_{{.Name}}HTTPClient) Context() context.Context { return x.ctx }
+
+func (x *{{$svrType}}_{{.Name}}HTTPClient) Header() (metadata.MD, error) {
+ x.mu.Lock()
+ stream := x.ClientStream
+ x.mu.Unlock()
+ if stream == nil { return nil, fmt.Errorf("send the initial request before requesting headers") }
+ return stream.Header()
+}
+
+func (x *{{$svrType}}_{{.Name}}HTTPClient) Trailer() metadata.MD {
+ x.mu.Lock()
+ stream := x.ClientStream
+ x.mu.Unlock()
+ if stream == nil { return nil }
+ return stream.Trailer()
+}
+
+func (x *{{$svrType}}_{{.Name}}HTTPClient) SendMsg(value interface{}) error {
+ m, ok := value.(*{{.Request}})
+ if !ok || m == nil { return fmt.Errorf("expected *{{.Request}}, got %T", value) }
+ return x.Send(m)
+}
+
 func (x *{{$svrType}}_{{.Name}}HTTPClient) CloseSend() error {
 	if err := x.open(nil); err != nil {
 		return err
@@ -223,12 +269,22 @@ func (x *{{$svrType}}_{{.Name}}HTTPClient) CloseSend() error {
 }
 
 func (x *{{$svrType}}_{{.Name}}HTTPClient) Send(m *{{.Request}}) error {
+ if m == nil { return fmt.Errorf("cannot send a nil request") }
 	if err := x.open(m); err != nil {
 		return err
 	}
 	return x.ClientStream.Send(m{{if .BodyMessage}}{{.Body}}{{end}})
 }
 {{- end}}
+
+func (x *{{$svrType}}_{{.Name}}HTTPClient) RecvMsg(value interface{}) error {
+ m, ok := value.(*{{.Reply}})
+ if !ok || m == nil { return fmt.Errorf("expected *{{.Reply}}, got %T", value) }
+ {{- if .ClientStreaming}}
+ if err := x.open(nil); err != nil { return err }
+ {{- end}}
+ return x.ClientStream.Recv({{if .ResponseBodyJSON}}http.FieldBody(m, {{printf "%q" .ResponseBodyField}}){{else if .ResponseBody}}&m{{.ResponseBody}}{{else}}m{{end}})
+}
 
 {{- if .ServerStreaming}}
 func (x *{{$svrType}}_{{.Name}}HTTPClient) Recv() (*{{.Reply}}, error) {
@@ -238,7 +294,7 @@ func (x *{{$svrType}}_{{.Name}}HTTPClient) Recv() (*{{.Reply}}, error) {
 	}
 	{{- end}}
 	m := new({{.Reply}})
-	if err := x.ClientStream.Recv(m); err != nil {
+	if err := x.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -251,7 +307,7 @@ func (x *{{$svrType}}_{{.Name}}HTTPClient) CloseAndRecv() (*{{.Reply}}, error) {
 		return nil, err
 	}
 	m := new({{.Reply}})
-	if err := x.ClientStream.CloseAndRecv(m); err != nil {
+	if err := x.ClientStream.CloseAndRecv({{if .ResponseBodyJSON}}http.FieldBody(m, {{printf "%q" .ResponseBodyField}}){{else if .ResponseBody}}&m{{.ResponseBody}}{{else}}m{{end}}); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -266,11 +322,11 @@ func (x *{{$svrType}}_{{.Name}}HTTPClient) CloseAndRecv() (*{{.Reply}}, error) {
 	{{- end}}
 {{- if .ClientStreaming}}
 func (c *{{$svrType}}HTTPClientImpl) {{.Name}}(ctx context.Context, opts ...http.CallOption) ({{$svrType}}_{{.Name}}Client, error) {
-	pattern := "{{.PathTemplate}}"
+	pattern := {{printf "%q" .PathTemplate}}
 	opts = append([]http.CallOption{
-		http.Accept("application/protojson"),
+		http.Accept("{{if .ResponseBodyJSON}}application/json{{else}}application/protojson{{end}}"),
 		{{- if not .BodyHTTPBody}}
-		http.ContentType("application/protojson"),
+		http.ContentType("{{if .BodyJSON}}application/json{{else}}application/protojson{{end}}"),
 		{{- end}}
 		http.Operation(Operation{{$svrType}}{{.OriginalName}}),
 		http.PathTemplate(pattern),
@@ -279,33 +335,33 @@ func (c *{{$svrType}}HTTPClientImpl) {{.Name}}(ctx context.Context, opts ...http
 }
 {{- else if .ServerStreaming}}
 func (c *{{$svrType}}HTTPClientImpl) {{.Name}}(ctx context.Context, in *{{.Request}}, opts ...http.CallOption) ({{$svrType}}_{{.Name}}Client, error) {
-	pattern := "{{.PathTemplate}}"
+	pattern := {{printf "%q" .PathTemplate}}
 	{{- if .HasBody}}
 		{{- if or (eq .BodyField "*") (eq .BodyField "")}}
 	path := http.BuildPath(pattern, in)
 		{{- else}}
-	path := http.BuildPath(pattern, in, http.WithQueryParams(), http.WithOmitFields("{{.BodyQueryName}}"))
+	path := http.BuildPath(pattern, in, http.WithQueryParams(), http.WithOmitFields({{printf "%q" .BodyQueryName}}))
 		{{- end}}
 	opts = append([]http.CallOption{
-		http.Accept("text/event-stream"),
+		http.Accept("text/event-stream{{if .ResponseBodyJSON}}, application/json{{end}}"),
 		{{- if .BodyHTTPBody}}
 		http.ContentType(http.BodyContentType(in{{.Body}})),
 		{{- else}}
-		http.ContentType("application/protojson"),
+		http.ContentType("{{if .BodyJSON}}application/json{{else}}application/protojson{{end}}"),
 		{{- end}}
 		http.Operation(Operation{{$svrType}}{{.OriginalName}}),
 		http.PathTemplate(pattern),
 	}, opts...)
-	stream, err := c.cc.ServerSentEvent(ctx, "{{.Method}}", path, in{{.Body}}, opts...)
+	stream, err := c.cc.ServerSentEvent(ctx, {{printf "%q" .Method}}, path, {{if .BodyJSON}}http.FieldBody(in, {{printf "%q" .BodyField}}){{else}}in{{.Body}}{{end}}, opts...)
 	{{- else}}
 	path := http.BuildPath(pattern, in, http.WithQueryParams())
 	opts = append([]http.CallOption{
-		http.Accept("text/event-stream"),
-		http.ContentType("application/protojson"),
+		http.Accept("text/event-stream{{if .ResponseBodyJSON}}, application/json{{end}}"),
+		http.ContentType("{{if .BodyJSON}}application/json{{else}}application/protojson{{end}}"),
 		http.Operation(Operation{{$svrType}}{{.OriginalName}}),
 		http.PathTemplate(pattern),
 	}, opts...)
-	stream, err := c.cc.ServerSentEvent(ctx, "{{.Method}}", path, nil, opts...)
+	stream, err := c.cc.ServerSentEvent(ctx, {{printf "%q" .Method}}, path, nil, opts...)
 	{{- end}}
 	if err != nil {
 		return nil, err
@@ -315,19 +371,19 @@ func (c *{{$svrType}}HTTPClientImpl) {{.Name}}(ctx context.Context, in *{{.Reque
 {{- else}}
 func (c *{{$svrType}}HTTPClientImpl) {{.Name}}(ctx context.Context, in *{{.Request}}, opts ...http.CallOption) (*{{.Reply}}, error) {
 	var out {{.Reply}}
-	pattern := "{{.PathTemplate}}"
+	pattern := {{printf "%q" .PathTemplate}}
 	{{- if .HasBody}}
 		{{- if or (eq .BodyField "*") (eq .BodyField "")}}
 	path := http.BuildPath(pattern, in)
 		{{- else}}
-	path := http.BuildPath(pattern, in, http.WithQueryParams(), http.WithOmitFields("{{.BodyQueryName}}"))
+	path := http.BuildPath(pattern, in, http.WithQueryParams(), http.WithOmitFields({{printf "%q" .BodyQueryName}}))
 		{{- end}}
 	opts = append([]http.CallOption{
-		http.Accept("application/protojson"),
+		http.Accept("{{if .ResponseBodyJSON}}application/json{{else}}application/protojson{{end}}"),
 		{{- if .BodyHTTPBody}}
 		http.ContentType(http.BodyContentType(in{{.Body}})),
 		{{- else}}
-		http.ContentType("application/protojson"),
+		http.ContentType("{{if .BodyJSON}}application/json{{else}}application/protojson{{end}}"),
 		{{- end}}
 		http.Operation(Operation{{$svrType}}{{.OriginalName}}),
 		http.PathTemplate(pattern),
@@ -335,15 +391,15 @@ func (c *{{$svrType}}HTTPClientImpl) {{.Name}}(ctx context.Context, in *{{.Reque
 	{{- else}}
 	path := http.BuildPath(pattern, in, http.WithQueryParams())
 	opts = append([]http.CallOption{
-		http.Accept("application/protojson"),
+		http.Accept("{{if .ResponseBodyJSON}}application/json{{else}}application/protojson{{end}}"),
 		http.Operation(Operation{{$svrType}}{{.OriginalName}}),
 		http.PathTemplate(pattern),
 	}, opts...)
 	{{- end}}
 	{{if .HasBody -}}
-	err := c.cc.Invoke(ctx, "{{.Method}}", path, in{{.Body}}, &out{{.ResponseBody}}, opts...)
+	err := c.cc.Invoke(ctx, {{printf "%q" .Method}}, path, {{if .BodyJSON}}http.FieldBody(in, {{printf "%q" .BodyField}}){{else}}in{{.Body}}{{end}}, {{if .ResponseBodyJSON}}http.FieldBody(&out, {{printf "%q" .ResponseBodyField}}){{else}}&out{{.ResponseBody}}{{end}}, opts...)
 	{{else -}}
-	err := c.cc.Invoke(ctx, "{{.Method}}", path, nil, &out{{.ResponseBody}}, opts...)
+	err := c.cc.Invoke(ctx, {{printf "%q" .Method}}, path, nil, {{if .ResponseBodyJSON}}http.FieldBody(&out, {{printf "%q" .ResponseBodyField}}){{else}}&out{{.ResponseBody}}{{end}}, opts...)
 	{{end -}}
 	if err != nil {
 		return nil, err
