@@ -151,6 +151,27 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 		}
 	}
 
+	// Preserve native names even when an earlier dotted field needs a
+	// synthetic wildcard. Reserve names before allocating any aliases.
+	reserved := make(map[string]bool)
+	for offset := 0; offset < len(rest); {
+		start := strings.IndexByte(rest[offset:], '{')
+		if start < 0 {
+			break
+		}
+		start += offset
+		end := routeVariableEnd(rest[start:])
+		if end < 0 {
+			break
+		}
+		field, _, _ := cutVar(rest[start+1 : start+end])
+		field = strings.TrimSuffix(field, "...")
+		if isWildcardName(field) {
+			reserved[field] = true
+		}
+		offset = start + end + 1
+	}
+
 	var (
 		path       strings.Builder
 		bindings   []PathBinding
@@ -165,11 +186,16 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 	newWildcard := func(field string) string {
 		base := field
 		if !isWildcardName(base) {
-			base = fmt.Sprintf("p%d", nextSynth)
-			nextSynth++
+			for {
+				base = fmt.Sprintf("p%d", nextSynth)
+				nextSynth++
+				if !reserved[base] && !used[base] {
+					break
+				}
+			}
 		}
 		n := base
-		for suffix := 1; used[n]; suffix++ {
+		for suffix := 1; used[n] || (n != base && reserved[n]); suffix++ {
 			n = fmt.Sprintf("%s%d", base, suffix)
 		}
 		used[n] = true

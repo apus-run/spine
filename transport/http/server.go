@@ -338,14 +338,12 @@ func (s *Server) register(method, p string, h http.Handler) *routeEntry {
 // subtree semantics must survive. Duplicate patterns keep the first
 // registration.
 func (s *Server) registerPattern(pattern string, h http.Handler) {
-	if _, ok := s.sets[pattern]; ok {
-		return // first registration wins (B-7 previous behavior)
+	names := patternWildcards(pattern)
+	bindings := make([]PathBinding, 0, len(names))
+	for _, name := range names {
+		bindings = append(bindings, PathBinding{Field: name, Segments: []string{"*"}, Wildcards: []string{name}})
 	}
-	set := &bindingSet{pattern: pattern, wildcardNames: patternWildcards(pattern)}
-	set.bindings = append(set.bindings, &routeBinding{template: pattern, handler: h})
-	s.sets[pattern] = set
-	s.mux.Handle(pattern, &bindingDispatcher{set: set})
-	s.routes = append(s.routes, &routeEntry{path: pattern, pattern: pattern})
+	s.addBinding("", pattern, &routeBinding{template: pattern, bindings: bindings, handler: h})
 }
 
 // addBinding attaches one logical binding to the pattern it compiles to.
@@ -366,6 +364,14 @@ func (s *Server) addBinding(method, patternPath string, b *routeBinding) *routeE
 		pattern = method + " " + patternPath
 	}
 	key := normalizePattern(pattern)
+	// Registration owns its descriptors. Callers may reuse generated bindings
+	// for other servers, and positional renaming must not mutate their data.
+	b.bindings = slices.Clone(b.bindings)
+	for i := range b.bindings {
+		b.bindings[i].Segments = slices.Clone(b.bindings[i].Segments)
+		b.bindings[i].Wildcards = slices.Clone(b.bindings[i].Wildcards)
+	}
+	b.validators = slices.Clone(b.validators)
 	e := &routeEntry{method: method, path: b.template, pattern: pattern, bindings: b.bindings}
 	s.routes = append(s.routes, e)
 
@@ -376,7 +382,7 @@ func (s *Server) addBinding(method, patternPath string, b *routeBinding) *routeE
 			// first registration keeps serving (B-7).
 			return e
 		}
-		renameWildcards(b, set.wildcardNames)
+		renameWildcards(b, patternWildcards(patternPath), set.wildcardNames)
 	} else {
 		set = &bindingSet{pattern: pattern, wildcardNames: patternWildcards(patternPath)}
 		s.sets[key] = set
@@ -451,12 +457,6 @@ func (d *bindingDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if tr, ok := transport.FromServerContext(r.Context()); ok {
-		if htr, ok := tr.(*Transport); ok {
-			htr.operation = b.template
-			htr.pathTemplate = b.template
-		}
-	}
 	overrideName, overrideValue := "", ""
 	if resource != nil && len(d.set.wildcardNames) > 0 {
 		overrideName, overrideValue = lastName(d.set.wildcardNames), *resource
@@ -475,6 +475,13 @@ func (d *bindingDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		vars := composeValues(b.bindings, r, overrideName, overrideValue)
 		r = r.WithContext(context.WithValue(r.Context(), routeVarsCtxKey{}, vars))
 	}
+	if tr, ok := transport.FromServerContext(r.Context()); ok {
+		if htr, ok := tr.(*Transport); ok {
+			htr.request = r
+			htr.operation = b.template
+			htr.pathTemplate = b.template
+		}
+	}
 	b.handler.ServeHTTP(w, r)
 }
 
@@ -490,7 +497,10 @@ func patternWildcards(pattern string) []string {
 		if j < 0 {
 			break
 		}
-		names = append(names, strings.TrimSuffix(pattern[i+1:i+j], "..."))
+		name := strings.TrimSuffix(pattern[i+1:i+j], "...")
+		if name != "$" {
+			names = append(names, name)
+		}
 		i += j + 1
 	}
 	return names
@@ -512,7 +522,9 @@ func normalizePattern(pattern string) string {
 			b.WriteString(pattern[i:])
 			break
 		}
-		if strings.HasSuffix(pattern[i+1:i+j], "...") {
+		if pattern[i+1:i+j] == "$" {
+			b.WriteString("{$}")
+		} else if strings.HasSuffix(pattern[i+1:i+j], "...") {
 			b.WriteString("{...}")
 		} else {
 			b.WriteString("{}")
@@ -525,17 +537,21 @@ func normalizePattern(pattern string) string {
 // renameWildcards rewrites a joining binding's wildcard names to the
 // registered pattern's names positionally, so variable composition reads
 // the wildcards the ServeMux actually set.
-func renameWildcards(b *routeBinding, names []string) {
-	if len(names) == 0 {
-		return
+func renameWildcards(b *routeBinding, from, to []string) {
+	names := make(map[string]string, len(from))
+	for i, name := range from {
+		names[name] = to[i]
 	}
-	pos := 0
 	for bi := range b.bindings {
-		for wi, w := range b.bindings[bi].Wildcards {
-			if pos < len(names) && w != names[pos] {
-				b.bindings[bi].Wildcards[wi] = names[pos]
+		for wi, name := range b.bindings[bi].Wildcards {
+			if renamed, ok := names[name]; ok {
+				b.bindings[bi].Wildcards[wi] = renamed
 			}
-			pos++
+		}
+	}
+	for i := range b.validators {
+		if renamed, ok := names[b.validators[i].wildcard]; ok {
+			b.validators[i].wildcard = renamed
 		}
 	}
 }
@@ -769,16 +785,22 @@ func (w *statusWriter) replayDefault() {
 }
 
 func (w *statusWriter) Flush() {
-	if f, ok := w.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
+	_ = w.FlushError()
+}
+
+// FlushError lets ResponseController preserve failures and traverse filters
+// that expose capabilities through Unwrap rather than direct interfaces.
+func (w *statusWriter) FlushError() error {
+	err := http.NewResponseController(w.ResponseWriter).Flush()
+	if err == nil && !w.wroteHeader {
+		w.wroteHeader = true
+		w.status = http.StatusOK
 	}
+	return err
 }
 
 func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if h, ok := w.ResponseWriter.(http.Hijacker); ok {
-		return h.Hijack()
-	}
-	return nil, nil, errors.New("http: response writer does not implement http.Hijacker")
+	return http.NewResponseController(w.ResponseWriter).Hijack()
 }
 
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }

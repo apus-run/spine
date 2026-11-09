@@ -494,3 +494,41 @@ Generator tests cover both a constant resource and an earlier wildcard
 with a constant final segment. Root and generator lint, race tests and vet
 pass locally. These targeted fixes are not a certification of all Spine
 modules or a substitute for application-specific load and rollout testing.
+
+## 14. Registration and response capability review (2026-11-09)
+
+Further review found additional concrete gaps that the earlier acceptance
+matrix did not exercise. The fixes keep ServeMux as the matching engine:
+
+- Structural registration keys now preserve the `{$}` terminator instead
+  of collapsing it into a normal wildcard. Exact slash routes and sibling
+  parameter routes coexist in either registration order.
+- Prefix registration uses the same registry key and descriptor pipeline
+  as ordinary registration, preserving first-registration-wins duplicates
+  and making native prefix captures available to BindVars.
+- Binding renaming uses the source pattern's wildcard positions, including
+  group-prefix parameters, and updates residual regex validators too.
+- Registration deep-copies field descriptors and their nested slices.
+  Reusing a generated descriptor across servers, or mutating caller-owned
+  descriptors later, no longer changes a previously registered server.
+- Native wildcard names are reserved before synthetic names are allocated,
+  preserving Request.PathValue for plain fields alongside dotted fields.
+- The transport exposes the selected request, including its composed path
+  variables. Rejected regex bindings retain unmatched metadata.
+- ResponseWriter Flush and Hijack forward through ResponseController so
+  filters exposing Unwrap retain streaming and upgrade capabilities.
+  Unsupported flushing reports ErrNotSupported without committing a 200.
+
+New tests cover both registration orders, distinct action parameter names,
+regex validation, descriptor reuse/mutation, parameterized groups,
+transport request binding, and real HTTP hijacking through an Unwrap-only
+filter. Root lint/race/vet/build and generator race/vet pass locally.
+
+The previous commit's Go, Lint and CodeQL workflows are green. The separate
+Gitee mirror workflow fails with an invalid/missing access token and SSH
+permission denial; resolving that requires valid repository secrets. This
+is an external mirroring issue, not a passing production-runtime check.
+
+Scope of assurance: the HTTP migration and the reviewed integration paths.
+These fixes do not establish production readiness for every Spine module
+or replace workload-specific load tests, observability and rollout checks.

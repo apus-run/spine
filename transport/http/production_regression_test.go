@@ -19,6 +19,11 @@ func TestProductionWildcardNames(t *testing.T) {
 				t.Errorf("%s: got %q want %q", k, c.Vars().Get(k), v)
 			}
 		}
+		for _, name := range []string{"p0", "p01"} {
+			if c.Request().PathValue(name) != want[name] {
+				t.Errorf("PathValue(%q) = %q", name, c.Request().PathValue(name))
+			}
+		}
 		return c.String(200, "ok")
 	})
 	w := httptest.NewRecorder()
