@@ -208,18 +208,38 @@ func TestHeaderMatrix_PrefixScope(t *testing.T) {
 	}
 }
 
-// Empty-value condition matches requests without the header, preserving the
-// previous gorilla Headers(key, "") semantics.
+// An empty condition requires the header to exist; any value then matches.
 func TestHeaderMatrix_EmptyValue(t *testing.T) {
+	for _, tc := range []struct {
+		values []string
+		code   int
+	}{
+		{nil, 404}, {[]string{}, 200}, {[]string{""}, 200}, {[]string{"present"}, 200},
+	} {
+		srv := NewServer()
+		srv.HandleHeader("x-missing", "", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+		req := httptest.NewRequest("GET", "/anywhere", nil)
+		if tc.values != nil {
+			req.Header["X-Missing"] = tc.values
+		}
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+		if w.Code != tc.code {
+			t.Errorf("values=%v got %d want %d", tc.values, w.Code, tc.code)
+		}
+	}
+}
+
+func TestHeaderMatrix_MultipleValues(t *testing.T) {
 	srv := NewServer()
-	srv.HandleHeader("x-missing", "", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("empty-match"))
-	})
-	req := httptest.NewRequest(http.MethodGet, "/anywhere", nil)
+	srv.HandleHeader("x-match", "second", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
+	req := httptest.NewRequest("POST", "/anywhere", nil)
+	req.Header.Add("X-Match", "first")
+	req.Header.Add("X-Match", "second")
 	w := httptest.NewRecorder()
 	srv.ServeHTTP(w, req)
-	if w.Code != http.StatusOK || w.Body.String() != "empty-match" {
-		t.Fatalf("want 200 empty-match, got %d %q", w.Code, w.Body.String())
+	if w.Code != 204 {
+		t.Fatalf("got %d", w.Code)
 	}
 }
 

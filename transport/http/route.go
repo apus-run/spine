@@ -196,8 +196,22 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 			return nil, fmt.Errorf("invalid route path %q: empty variable name", tpl)
 		}
 
+		if !hasConstraint && field == "$" {
+			path.WriteString("{$}")
+			i += end + 1
+			continue
+		}
+		multi := !hasConstraint && strings.HasSuffix(field, "...")
+		if multi {
+			field = strings.TrimSuffix(field, "...")
+		}
 		binding := PathBinding{Field: field}
-		if !hasConstraint {
+		if multi {
+			name := newWildcard(field)
+			path.WriteString("{" + name + "...}")
+			binding.Segments = []string{"**"}
+			binding.Wildcards = []string{name}
+		} else if !hasConstraint {
 			name := newWildcard(field)
 			path.WriteString("{" + name + "}")
 			binding.Segments = []string{"*"}
@@ -224,7 +238,7 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 					// A single-segment regex the ServeMux cannot express
 					// stays as a value validator (404 on mismatch).
 					if seg != "*" && seg != "[^/]+" {
-						re, err := regexp.Compile(seg)
+						re, err := regexp.Compile("^(?:" + seg + ")$")
 						if err != nil {
 							return nil, fmt.Errorf("invalid route path %q: bad constraint %q: %v", tpl, seg, err)
 						}

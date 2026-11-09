@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -212,7 +213,7 @@ func NewServer(opts ...ServerOption) *Server {
 		scope := http.NewServeMux()
 		dispatch := http.HandlerFunc(srv.dispatch)
 		// Segment-boundary scope (D3): the bare prefix and everything below it.
-		scope.Handle(srv.prefix, dispatch)
+		scope.Handle(strings.TrimSuffix(srv.prefix, "/"), dispatch)
 		scope.Handle(strings.TrimSuffix(srv.prefix, "/")+"/", dispatch)
 		srv.scope = scope
 	}
@@ -442,6 +443,9 @@ type bindingDispatcher struct {
 }
 
 func (d *bindingDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if sw, ok := w.(*statusWriter); ok {
+		sw.matched = true
+	}
 	b, resource := d.set.selectBinding(r)
 	if b == nil {
 		http.NotFound(w, r)
@@ -580,24 +584,34 @@ func (s *Server) transportHandler(next http.Handler) http.Handler {
 // when a PathPrefix option is configured (header dispatch then applies only
 // within the scope, D2), otherwise it dispatches directly.
 func (s *Server) route(w http.ResponseWriter, r *http.Request) {
-	if s.scope != nil {
-		s.scope.ServeHTTP(w, r)
-		return
+	sw := &statusWriter{ResponseWriter: w, req: r, customNotFound: s.notFound, customMethodNotAllowed: s.methodNotAllowed}
+	if s.strictSlash {
+		sw.alias = s.strictSlashRedirect
 	}
-	s.dispatch(w, r)
+	if s.scope != nil {
+		s.scope.ServeHTTP(sw, r)
+	} else {
+		s.dispatch(sw, r)
+	}
+	sw.finish()
 }
 
 // dispatch performs header dispatch (D2) before a single normal routing
 // pass: the first matching header registration handles the request; on a
 // miss the ServeMux decides 404/405/Allow and sets path values and Pattern.
 func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
+	r.Pattern = "" // The private scope is not a selected business route.
 	for _, hr := range s.headerRoutes {
-		if r.Header.Get(hr.key) == hr.val {
+		values := r.Header.Values(hr.key)
+		if values != nil && (hr.val == "" || slices.Contains(values, hr.val)) {
 			if tr, ok := transport.FromServerContext(r.Context()); ok {
 				if tr, ok := tr.(*Transport); ok {
 					tr.operation = headerOperation
 					tr.pathTemplate = headerOperation
 				}
+			}
+			if sw, ok := w.(*statusWriter); ok {
+				sw.matched = true
 			}
 			hr.handler.ServeHTTP(w, r)
 			return
@@ -606,24 +620,9 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 	s.serveMux(w, r)
 }
 
-// serveMux routes through the main ServeMux. A response writer wrapper is
-// installed when a custom 404/405 handler or the StrictSlash alias may need
-// to replace the mux's default responses; otherwise requests pass through
-// unwrapped.
+// serveMux performs exactly one normal routing pass.
 func (s *Server) serveMux(w http.ResponseWriter, r *http.Request) {
-	if s.notFound == nil && s.methodNotAllowed == nil && !s.strictSlash {
-		s.mux.ServeHTTP(w, r)
-		return
-	}
-	sw := &statusWriter{
-		ResponseWriter:         w,
-		req:                    r,
-		customNotFound:         s.notFound,
-		customMethodNotAllowed: s.methodNotAllowed,
-		alias:                  s.strictSlashRedirect,
-	}
-	s.mux.ServeHTTP(sw, r)
-	sw.finish()
+	s.mux.ServeHTTP(w, r)
 }
 
 // strictSlashRedirect reports the redirect target when the request path
@@ -631,7 +630,7 @@ func (s *Server) serveMux(w http.ResponseWriter, r *http.Request) {
 // the alternate path up through the ServeMux itself (never executing a
 // handler) and only runs for unmatched requests.
 func (s *Server) strictSlashRedirect(r *http.Request) (string, bool) {
-	p := r.URL.Path
+	p := r.URL.EscapedPath()
 	if p == "" || p == "/" || p == "*" {
 		return "", false
 	}
@@ -640,8 +639,11 @@ func (s *Server) strictSlashRedirect(r *http.Request) (string, bool) {
 		alt = strings.TrimSuffix(p, "/")
 	}
 	probe := r.Clone(r.Context())
-	probe.URL.Path = alt
-	if _, pattern := s.mux.Handler(probe); pattern == "" {
+	probe.URL.Path, _ = url.PathUnescape(alt)
+	probe.URL.RawPath = alt
+	h, pattern := s.mux.Handler(probe)
+	d, exact := h.(*bindingDispatcher)
+	if pattern == "" || !exact || strings.HasSuffix(d.set.pattern, "/") || strings.Contains(d.set.pattern, "...}") {
 		return "", false
 	}
 	loc := alt
@@ -653,9 +655,9 @@ func (s *Server) strictSlashRedirect(r *http.Request) (string, bool) {
 
 // statusWriter wraps the ResponseWriter handed to the ServeMux so the mux's
 // own 404/405 responses can be replaced. Only responses the mux writes for
-// a request it did not match (r.Pattern == "", nothing written yet) are
+// a request that has not entered a registered handler are
 // intercepted; anything a matched handler writes passes through untouched,
-// and redirect responses are never modified.
+// and only router-produced redirects are normalized to 301.
 type statusWriter struct {
 	http.ResponseWriter
 	req                    *http.Request
@@ -663,6 +665,7 @@ type statusWriter struct {
 	customMethodNotAllowed http.Handler
 	alias                  func(*http.Request) (string, bool)
 
+	matched     bool // a registered business/header handler has been entered
 	wroteHeader bool
 	status      int
 	suppressed  bool
@@ -689,12 +692,15 @@ func (w *statusWriter) WriteHeader(code int) {
 	// custom 404 handler is configured.
 	suppress := code == http.StatusNotFound && (w.customNotFound != nil || w.alias != nil)
 	suppress = suppress || (code == http.StatusMethodNotAllowed && w.customMethodNotAllowed != nil)
-	if suppress && w.req.Pattern == "" {
+	if suppress && !w.matched {
 		if code == http.StatusMethodNotAllowed {
 			w.allow = w.Header().Get("Allow")
 		}
 		w.suppressed = true
 		return
+	}
+	if !w.matched && (code == http.StatusTemporaryRedirect || code == http.StatusPermanentRedirect) {
+		code = http.StatusMovedPermanently
 	}
 	w.ResponseWriter.WriteHeader(code)
 }
@@ -738,7 +744,7 @@ func (w *statusWriter) finish() {
 	if w.status == http.StatusMethodNotAllowed {
 		w.Header().Set("Allow", w.allow)
 	}
-	dw := &deferredWriter{ResponseWriter: w.ResponseWriter, code: code}
+	dw := &deferredWriter{ResponseWriter: w.ResponseWriter, code: code, allow: w.allow}
 	custom.ServeHTTP(dw, w.req)
 	dw.finish()
 }
@@ -771,20 +777,24 @@ func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
-// deferredWriter writes code when the handler finishes without writing a
-// status itself.
+// deferredWriter preserves the routing status and Allow while the custom
+// handler controls the response body and other headers.
 type deferredWriter struct {
 	http.ResponseWriter
 	code  int
+	allow string
 	wrote bool
 }
 
-func (w *deferredWriter) WriteHeader(code int) {
+func (w *deferredWriter) WriteHeader(_ int) {
 	if w.wrote {
 		return
 	}
 	w.wrote = true
-	w.ResponseWriter.WriteHeader(code)
+	if w.code == http.StatusMethodNotAllowed {
+		w.Header().Set("Allow", w.allow)
+	}
+	w.ResponseWriter.WriteHeader(w.code)
 }
 
 func (w *deferredWriter) Write(p []byte) (int, error) {
