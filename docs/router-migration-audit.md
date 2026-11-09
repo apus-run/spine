@@ -1,4 +1,7 @@
-# Router Migration Audit (Phase 1)
+# Router Migration Audit
+
+> Current acceptance: see §12. Earlier sections retain the historical audit;
+> §10–§12 supersede their implementation status and compatibility decisions.
 
 Source audit and behavior baseline for the Gorilla Mux → `net/http.ServeMux`
 migration defined in `tasks/prd.md` (PRD v1.0.5).
@@ -370,3 +373,81 @@ recommended (compiled-at-generation bindings are slightly leaner) but no
 longer required for correctness.
 
 Remaining gate: the CI matrix (Go 1.27.x) must pass on the PR.
+
+
+## 12. PRD acceptance closeout (2026-11-09)
+
+The user explicitly reconfirmed that the subsequent changes in §10–§11
+remain in force: Go 1.27.3 minimum, first-registration-wins duplicates,
+and registration-time compatibility for old generated routes. These
+supersede D4 and the duplicate-conflict portion of §14.4. Other PRD
+contracts still apply. In particular, D5 includes **all router-generated
+redirects**, including ServeMux cleaning and subtree redirects; the
+interpretation in §3.1, §6, §7.3 and §11.2 that excluded them was incorrect.
+
+### Runtime corrections
+
+- `server.go`: one response wrapper covers the optional scope mux and the
+  main mux. Entering a registered handler marks business responses, so
+  router redirects become 301 while business 307/308 responses remain
+  unchanged. Responses are not buffered; WebSocket hijacking and streaming
+  flushing remain available.
+- `StrictSlash(false)` does not install the exact-route alias. Enabled
+  aliases resolve through ServeMux, only target exact registrations, and
+  preserve `EscapedPath`, encoded slashes, percent signs and query strings.
+- Custom 404/405 bodies retain their routing status; 405 retains the
+  native Allow header even if the custom handler attempts to override it.
+  Out-of-scope 404s now also use the server's custom NotFoundHandler.
+- `PathPrefix("/api/")` no longer registers the same scope pattern twice.
+  The bare prefix and descendants enter the scope. Header handlers do not
+  inherit the private scope's Request.Pattern.
+- Header dispatch preserves Gorilla's actual semantics: an empty condition
+  requires the header to exist, and a nonempty condition checks every
+  same-name header value. The absent-header claim in §7.1 was incorrect;
+  checked against Gorilla v1.8.1 `matchMapWithString` and covered by tests.
+- `route.go`: native `{rest...}` and `{$}` patterns survive registration;
+  residual single-segment regex validators match the whole captured value.
+- Generator `pattern.go`: root and trailing-slash exact templates compile
+  with `{$}`, consistent with the restored exact-route semantics in §11.
+
+### Regression evidence
+
+`migration_contract_test.go` exercises the actual Server entry point:
+301 cleaning/subtree redirects, StrictSlash on/off, escaped alias paths,
+custom status/Allow preservation, prefix scope and header Pattern,
+native multi-segment captures, unchanged business redirects, real HTTP
+POST→GET redirect following with query preservation, explicit slash
+siblings, explicit HEAD precedence and suppressed HEAD bodies, and full
+regex validation. Header matrix tests cover missing/empty/present headers
+and multiple header values. The generator test covers exact root/trailing
+slash output. Each corrected behavior was first reproduced by a failing
+regression test.
+
+The original migration's phase commits are preserved. This closeout adds
+focused runtime, generator and documentation commits; it does not repeat
+the migration or change the approved later compatibility decisions.
+
+
+### Final local verification
+
+Toolchain: go1.27.3 darwin/arm64. Root module and the HTTP generator:
+`go test -race ./...`, `go vet ./...`, `go build ./...` passed.
+The same commands passed in `contrib/errortracker/sentry`,
+`contrib/middleware/oauth2`, `contrib/otel`, `contrib/polaris`, and
+`contrib/opensergo`. The Polaris suite initially failed because its local
+service was absent; it passed after starting the same standalone image
+used by CI. The temporary container and test-created backup files were
+removed afterwards.
+
+All seven module directories passed `go mod tidy -diff`; `go mod why -m
+ github.com/gorilla/mux` and `go list -m all` confirm mux is absent from
+their graphs. The source scan in PRD §19 returned no matches. The generator
+module's tidy change only groups its existing require declarations.
+`BenchmarkServer`, 400 iterations × 3, returned 64.2 / 99.5 / 72.4 µs/op;
+this is a smoke comparison, not a statistically supported performance claim.
+
+The Go workflow now checks vet, tidy drift, and mux absence for these
+modules in addition to its existing tests and service containers. The
+workflow's **remote GitHub Actions run is still pending**. No remote CI
+success is claimed; the PRD's complete-CI gate remains open until that run
+passes. Local regression and dependency-cleanup gates are complete.

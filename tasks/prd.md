@@ -12,6 +12,9 @@
 | Original Router | github.com/gorilla/mux |
 | Target Router | net/http.ServeMux |
 
+
+> 2026-11-09 执行补充：用户确认保留后续调整——最低 Go 1.27.3、重复路由首个生效、旧生成代码无需重新生成即可使用。下文 D4 与重复注册冲突条款据此被覆盖，其余要求继续执行。实际验收记录见 `docs/router-migration-audit.md` §12；未执行的远端 CI 不视为已通过。
+
 ---
 
 # 0. 修订记录与决策

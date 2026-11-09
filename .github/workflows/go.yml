@@ -73,6 +73,23 @@ jobs:
         env:
           GOTOOLCHAIN: auto
 
+      - name: Router migration quality gates
+        run: |
+          for module in . cmd/protoc-gen-go-http contrib/errortracker/sentry contrib/middleware/oauth2 contrib/otel contrib/polaris contrib/opensergo; do
+            (
+              cd "$module" || exit 1
+              go vet ./... || exit 1
+              go mod tidy -diff || exit 1
+              dependencies="$(go list -m all)" || exit 1
+              if printf '%s\n' "$dependencies" | grep -q '^github.com/gorilla/mux '; then
+                echo "gorilla/mux remains in $module"
+                exit 1
+              fi
+            ) || exit 1
+          done
+        env:
+          GOTOOLCHAIN: auto
+
       - name: Upload coverage to Codecov
         run: bash <(curl -s https://codecov.io/bash)
 
