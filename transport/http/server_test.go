@@ -375,7 +375,7 @@ func TestListener(t *testing.T) {
 }
 
 func TestNotFoundHandler(t *testing.T) {
-	srv := NewServer(NotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := NewServer(NotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("custom-not-found"))
 	})))
 	srv.HandleFunc("/index", h)
@@ -398,7 +398,7 @@ func TestNotFoundHandler(t *testing.T) {
 }
 
 func TestMethodNotAllowedHandler(t *testing.T) {
-	srv := NewServer(MethodNotAllowedHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := NewServer(MethodNotAllowedHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("custom-method-not-allowed"))
 	})))
 	srv.Route("/api").GET("/users/{id}", func(Context) error { return nil })

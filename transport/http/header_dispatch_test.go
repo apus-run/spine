@@ -155,10 +155,10 @@ func TestHeaderMatrix_Miss(t *testing.T) {
 // priority (header dispatch precedes normal routing by design, D2).
 func TestHeaderMatrix_CrossOrder(t *testing.T) {
 	srv := NewServer()
-	srv.HandleFunc("/x", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("/x", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("normal"))
 	})
-	srv.HandleHeader("x-late", "1", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleHeader("x-late", "1", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("header-late"))
 	})
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
@@ -173,7 +173,7 @@ func TestHeaderMatrix_CrossOrder(t *testing.T) {
 // PathPrefix scope: header dispatch applies only within the scope.
 func TestHeaderMatrix_PrefixScope(t *testing.T) {
 	srv := NewServer(PathPrefix("/api"))
-	srv.HandleHeader("x-scope", "1", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleHeader("x-scope", "1", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("header-scoped"))
 	})
 	srv.Route("/").GET("/ping", func(ctx Context) error {
@@ -217,7 +217,7 @@ func TestHeaderMatrix_EmptyValue(t *testing.T) {
 		{nil, 404}, {[]string{}, 200}, {[]string{""}, 200}, {[]string{"present"}, 200},
 	} {
 		srv := NewServer()
-		srv.HandleHeader("x-missing", "", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+		srv.HandleHeader("x-missing", "", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) })
 		req := httptest.NewRequest("GET", "/anywhere", nil)
 		if tc.values != nil {
 			req.Header["X-Missing"] = tc.values
@@ -232,7 +232,7 @@ func TestHeaderMatrix_EmptyValue(t *testing.T) {
 
 func TestHeaderMatrix_MultipleValues(t *testing.T) {
 	srv := NewServer()
-	srv.HandleHeader("x-match", "second", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
+	srv.HandleHeader("x-match", "second", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
 	req := httptest.NewRequest("POST", "/anywhere", nil)
 	req.Header.Add("X-Match", "first")
 	req.Header.Add("X-Match", "second")
@@ -257,7 +257,7 @@ func TestHeaderMatrix_GlobalFilterTransport(t *testing.T) {
 			next.ServeHTTP(w, r)
 		})
 	}))
-	srv.HandleFunc("/ok", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
+	srv.HandleFunc("/ok", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	req := httptest.NewRequest(http.MethodGet, "/ok", nil)
 	w := httptest.NewRecorder()
 	srv.ServeHTTP(w, req)
@@ -276,10 +276,10 @@ func TestHeaderMatrix_PathPrefixComposition(t *testing.T) {
 	srv.Route("/v1").GET("/things/{id}", func(ctx Context) error {
 		return ctx.String(http.StatusOK, ctx.Vars().Get("id"))
 	})
-	srv.HandleFunc("/plain", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("/plain", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("plain"))
 	})
-	srv.HandlePrefix("/assets", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.HandlePrefix("/assets", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("asset"))
 	}))
 

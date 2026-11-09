@@ -37,7 +37,7 @@ func TestMigrationRedirectContract(t *testing.T) {
 }
 
 func TestMigrationCustomStatusContract(t *testing.T) {
-	custom := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	custom := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Allow", "WRONG")
 		w.WriteHeader(202)
 		_, _ = w.Write([]byte("custom"))
@@ -63,7 +63,7 @@ func TestMigrationPrefixTrailingSlash(t *testing.T) {
 			t.Errorf("prefix registration panicked: %v", p)
 		}
 	}()
-	s := NewServer(PathPrefix("/api/"), NotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("custom")) })))
+	s := NewServer(PathPrefix("/api/"), NotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("custom")) })))
 	s.HandleHeader("X-Test", "yes", func(w http.ResponseWriter, r *http.Request) {
 		if r.Pattern != "" {
 			t.Errorf("header inherited scope pattern %q", r.Pattern)

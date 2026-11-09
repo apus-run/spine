@@ -36,24 +36,24 @@ type methodDesc struct {
 	Reply        string
 	Comment      string
 	// http_rule
-	Path            string // compiled ServeMux pattern path
-	PathTemplate    string // original google.api.http path template
-	Method          string
-	RegisterMethod  string // method used for server registration (GET for WebSocket)
-	Action          string // custom-verb suffix ("" when absent)
-	BindingsCode    string // rendered []transport/http.PathBinding literal
-	HasVars         bool
-	HasBody         bool
-	Body            string
-	BodyField       string
-	BodyQueryName   string
-	BodyHTTPBody    bool
-	BodyMessage     bool
-	ResponseBody    string
+	Path                 string // compiled ServeMux pattern path
+	PathTemplate         string // original google.api.http path template
+	Method               string
+	RegisterMethod       string // method used for server registration (GET for WebSocket)
+	Action               string // custom-verb suffix ("" when absent)
+	BindingsCode         string // rendered []transport/http.PathBinding literal
+	HasVars              bool
+	HasBody              bool
+	Body                 string
+	BodyField            string
+	BodyQueryName        string
+	BodyHTTPBody         bool
+	BodyMessage          bool
+	ResponseBody         string
 	ResponseBodyHTTPBody bool
-	ReplyHTTPBody   bool
-	ClientStreaming bool
-	ServerStreaming bool
+	ReplyHTTPBody        bool
+	ClientStreaming      bool
+	ServerStreaming      bool
 }
 
 func (s *serviceDesc) execute() string {

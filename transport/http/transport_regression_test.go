@@ -43,7 +43,7 @@ func TestTransportRegression_OperationLifecycle(t *testing.T) {
 			}
 		}
 		SetOperation(ctx, "helloworld.v1.Greeter/SayHello")
-		h := ctx.Middleware(func(ctx context.Context, req any) (any, error) {
+		h := ctx.Middleware(func(_ context.Context, _ any) (any, error) {
 			return "ok", nil
 		})
 		_, err := h(ctx, nil)
@@ -174,13 +174,13 @@ func TestTransportRegression_Decoders(t *testing.T) {
 // redirects from Redirector pass through untouched by the router wrappers.
 func TestTransportRegression_ErrorEncoderAndRedirector(t *testing.T) {
 	srv := NewServer()
-	srv.Route("/err").GET("", func(ctx Context) error {
+	srv.Route("/err").GET("", func(_ Context) error {
 		return spineerrors.BadRequest("TEST", "bad request")
 	})
-	srv.Route("/redir").GET("", func(ctx Context) error {
+	srv.Route("/redir").GET("", func(_ Context) error {
 		return NewRedirect("/target", http.StatusFound)
 	})
-	srv.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("/target", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("target"))
 	})
 

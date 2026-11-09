@@ -451,3 +451,17 @@ modules in addition to its existing tests and service containers. The
 workflow's **remote GitHub Actions run is still pending**. No remote CI
 success is claimed; the PRD's complete-CI gate remains open until that run
 passes. Local regression and dependency-cleanup gates are complete.
+
+### Remote CI follow-up
+
+Draft PR: https://github.com/apus-run/spine/pull/1, branch
+`fix/router-migration-contracts`. The first remote Lint run exposed an
+existing incompatibility with the approved Go 1.27.3 minimum:
+golangci-lint v2.12.2 was built with Go 1.26, and rebuilding it still failed
+on Go 1.27 export data version 5. The workflow now builds pinned v2.15.0
+with the repository toolchain; the upstream changelog records Go 1.27
+support starting in v2.13.0. No repository dependency or lint rule was
+relaxed. Local root and generator lint now report zero issues after
+correcting migration-test unused parameters, formatting the generator
+metadata struct, and expressing character checks without negated unions.
+Remote workflows must still complete before the full-CI gate closes.

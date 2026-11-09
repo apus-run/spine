@@ -17,14 +17,14 @@ func TestDoD_MultiServerIsolation(t *testing.T) {
 	a.Route("/shared").GET("/thing", func(ctx Context) error {
 		return ctx.String(http.StatusOK, "server-a")
 	})
-	a.HandleFunc("/only-a", func(w http.ResponseWriter, r *http.Request) {
+	a.HandleFunc("/only-a", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("only-a"))
 	})
 
-	b := NewServer(NotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	b := NewServer(NotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("b-404"))
 	})))
-	b.HandleFunc("/shared/other", func(w http.ResponseWriter, r *http.Request) {
+	b.HandleFunc("/shared/other", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("server-b"))
 	})
 

@@ -110,7 +110,7 @@ func TestProbeB2_ExactTrailingSlash(t *testing.T) {
 // the bare prefix covered).
 func TestProbeB3_PrefixWithoutSlash(t *testing.T) {
 	srv := NewServer()
-	srv.HandlePrefix("/sub", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.HandlePrefix("/sub", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("sub"))
 	}))
 	w := probeDo(srv, http.MethodGet, "/sub", nil)
@@ -137,7 +137,7 @@ func TestProbeB4_DuplicateSlashes(t *testing.T) {
 // B-5: PathPrefix matches on segment boundaries -> /apiary is 404 (D3).
 func TestProbeB5_PrefixSegmentBoundary(t *testing.T) {
 	srv := NewServer()
-	srv.HandlePrefix("/api", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.HandlePrefix("/api", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("api"))
 	}))
 	w := probeDo(srv, http.MethodGet, "/apiary", nil)
@@ -157,7 +157,7 @@ func TestProbeB5_PrefixSegmentBoundary(t *testing.T) {
 // B-6: HandleHeader matches regardless of path (D2).
 func TestProbeB6_HeaderUnrelatedPath(t *testing.T) {
 	srv := NewServer()
-	srv.HandleHeader("x-probe", "1", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleHeader("x-probe", "1", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("header"))
 	})
 	w := probeDo(srv, http.MethodGet, "/anywhere/at/all", map[string]string{"X-Probe": "1"})
@@ -171,8 +171,8 @@ func TestProbeB6_HeaderUnrelatedPath(t *testing.T) {
 // silently, restoring the previous engine's behavior.
 func TestProbeB7_DuplicateRegistration(t *testing.T) {
 	srv := NewServer()
-	srv.HandleFunc("/dup", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("first")) })
-	srv.HandleFunc("/dup", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("second")) })
+	srv.HandleFunc("/dup", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("first")) })
+	srv.HandleFunc("/dup", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("second")) })
 	w := probeDo(srv, http.MethodGet, "/dup", nil)
 	if w.Code != http.StatusOK || w.Body.String() != "first" {
 		t.Fatalf("B-7: want 200 first, got %d %q", w.Code, w.Body.String())
@@ -180,8 +180,8 @@ func TestProbeB7_DuplicateRegistration(t *testing.T) {
 	// Structurally identical patterns with different wildcard names also
 	// keep the first registration (previous engine semantics).
 	srv2 := NewServer()
-	srv2.HandleFunc("/v1/{name}", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("one")) })
-	srv2.HandleFunc("/v1/{id}", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("two")) })
+	srv2.HandleFunc("/v1/{name}", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("one")) })
+	srv2.HandleFunc("/v1/{id}", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("two")) })
 	w = probeDo(srv2, http.MethodGet, "/v1/x", nil)
 	if w.Code != http.StatusOK || w.Body.String() != "one" {
 		t.Fatalf("B-7 structural: want 200 one, got %d %q", w.Code, w.Body.String())
@@ -228,7 +228,7 @@ func TestProbeB8_UnmatchedTransport(t *testing.T) {
 // B-9: WalkRoute skips no-method routes.
 func TestProbeB9_WalkSkipsNoMethod(t *testing.T) {
 	srv := NewServer()
-	srv.HandleFunc("/plain", func(w http.ResponseWriter, r *http.Request) {})
+	srv.HandleFunc("/plain", func(_ http.ResponseWriter, _ *http.Request) {})
 	srv.HandlePrefix("/pref", http.NotFoundHandler())
 	srv.Route("/").Handle("*", "/wild", func(Context) error { return nil })
 	var seen []RouteInfo
@@ -251,7 +251,7 @@ func TestProbeB9_WalkSkipsNoMethod(t *testing.T) {
 // B-10: unmatched requests no longer delegate to http.DefaultServeMux.
 func TestProbeB10_DefaultServeMuxDelegation(t *testing.T) {
 	const probePath = "/__spine_probe_defmux__"
-	http.DefaultServeMux.HandleFunc(probePath, func(w http.ResponseWriter, r *http.Request) {
+	http.DefaultServeMux.HandleFunc(probePath, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("defmux"))
 	})
 	srv := NewServer()
@@ -310,8 +310,8 @@ func TestProbeB13_EncodedPathValues(t *testing.T) {
 // the D5 normalization decision can be verified per Go version.
 func TestProbeStdlibRedirects(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/sub/", func(w http.ResponseWriter, r *http.Request) {})
-	mux.HandleFunc("/clean/", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("/sub/", func(_ http.ResponseWriter, _ *http.Request) {})
+	mux.HandleFunc("/clean/", func(_ http.ResponseWriter, _ *http.Request) {})
 
 	req := httptest.NewRequest(http.MethodGet, "/sub", nil)
 	w := httptest.NewRecorder()
@@ -325,14 +325,14 @@ func TestProbeStdlibRedirects(t *testing.T) {
 
 	// Exact route with trailing slash request stays 404 on stdlib; the
 	// framework alias (D5) covers this case above.
-	mux.HandleFunc("/exact", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("/exact", func(_ http.ResponseWriter, _ *http.Request) {})
 	req = httptest.NewRequest(http.MethodGet, "/exact/", nil)
 	w = httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 	t.Logf("stdlib GET /exact/ (exact /exact) -> %d", w.Code)
 
 	// Method mismatch on stdlib: 405 + Allow.
-	mux.HandleFunc("GET /m", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("GET /m", func(_ http.ResponseWriter, _ *http.Request) {})
 	req = httptest.NewRequest(http.MethodPost, "/m", nil)
 	w = httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
