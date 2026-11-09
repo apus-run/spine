@@ -13,7 +13,7 @@ import (
 	"github.com/apus-run/spine/v3/registry"
 )
 
-func (d *Discovery) Register(ctx context.Context, service *registry.ServiceInstance) (err error) {
+func (d *Discovery) Register(_ context.Context, service *registry.ServiceInstance) (err error) {
 	ins := fromServerInstance(service, d.config)
 
 	d.mutex.Lock()
