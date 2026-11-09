@@ -1,0 +1,5 @@
+syntax = "proto3";
+package invalid;
+option go_package = "example.com/invalid";
+import "errors/errors.proto";
+enum Reason { option (errors.default_code) = 400; DUPLICATE_NAME = 0; DuplicateName = 1; }

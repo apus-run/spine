@@ -1,0 +1,5 @@
+syntax = "proto3";
+package acceptance.codes;
+option go_package = "example.com/spine-generator-test/codes;errors";
+import "errors/errors.proto";
+enum Reason { PKG_ERROR = 0 [(errors.code) = 400]; }

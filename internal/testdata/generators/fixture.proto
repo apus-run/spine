@@ -1,0 +1,105 @@
+syntax = "proto3";
+package acceptance.v1;
+option go_package = "example.com/spine-generator-test;fixture";
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+import "errors/errors.proto";
+
+enum ErrorReason {
+  option (errors.default_code) = 500;
+  UNKNOWN = 0;
+  NOT_FOUND = 1 [(errors.code) = 404];
+  BUSY = 2 [(errors.code) = 503];
+}
+message Container {
+  enum NestedReason {
+    option (errors.default_code) = 409;
+    NESTED_CONFLICT = 0;
+  }
+}
+message GetRequest { string id = 1; optional string note = 2; }
+message NameRequest { string name = 1; }
+message Book { string name = 1; string title = 2; }
+message UpdateRequest { Book book = 1 [json_name = "payload\"book"]; string tag = 2; }
+message Reply { string message = 1; Book book = 2; int64 total = 3; ErrorReason reason = 4; }
+message ReservedRequest { Book reset = 1; }
+message ReservedReply { Book string = 1; }
+service Fixture {
+ rpc Reserved(ReservedRequest) returns (ReservedReply) {
+  option (google.api.http) = {post:"/v1/reserved" body:"reset" response_body:"string"};
+ }
+
+ rpc Any(GetRequest) returns (Reply) {
+  option (google.api.http) = {custom:{kind:"*" path:"/v1/any/{id}"}};
+ }
+
+ rpc Total(GetRequest) returns (Reply) {
+  option (google.api.http) = {get:"/v1/total/{id}" response_body:"total"};
+ }
+ rpc Reason(GetRequest) returns (Reply) {
+  option (google.api.http) = {get:"/v1/reason/{id}" response_body:"reason"};
+ }
+
+ rpc Scalar(GetRequest) returns (Reply) {
+  option (google.api.http) = {post:"/v1/scalars/{id}" body:"note" response_body:"message"};
+ }
+
+ rpc Get(GetRequest) returns (Reply) {
+  option (google.api.http) = {get:"/v1/items/{id}" additional_bindings:{get:"/v1/aliases/{id}"}};
+ }
+ rpc Publish(UpdateRequest) returns (Reply) {
+  option (google.api.http) = {post:"/v1/{book.name=projects/*/books/*}:publish" body:"book" response_body:"book"};
+ }
+ rpc Archive(UpdateRequest) returns (Reply) {
+  option (google.api.http) = {post:"/v1/{book.name=projects/*/books/*}:archive" body:"book" response_body:"book"};
+ }
+ rpc Literal(NameRequest) returns (Reply) {
+  option (google.api.http) = {post:"/v1/{name=books/special}:publish"};
+ }
+ rpc Resource(NameRequest) returns (Reply) {
+  option (google.api.http) = {get:"/v1/{name=files/**}"};
+ }
+ rpc Fail(GetRequest) returns (Reply) {
+  option (google.api.http) = {get:"/v1/fail/{id}"};
+ }
+ rpc Custom(GetRequest) returns (Reply) {
+  option (google.api.http) = {custom:{kind:"REPORT" path:"/v1/report/{id}"}};
+ }
+ rpc Download(GetRequest) returns (google.api.HttpBody) {
+  option (google.api.http) = {get:"/v1/download/{id}"};
+ }
+ rpc Upload(google.api.HttpBody) returns (google.api.HttpBody) {
+  option (google.api.http) = {post:"/v1/upload" body:"*"};
+ }
+ rpc WatchBook(GetRequest) returns (stream Reply) {
+  option (google.api.http) = {get:"/v1/watch-book/{id}" response_body:"book"};
+ }
+ rpc WatchScalar(GetRequest) returns (stream Reply) {
+  option (google.api.http) = {get:"/v1/watch-scalar/{id}" response_body:"message"};
+ }
+ rpc CollectBooks(stream UpdateRequest) returns (Reply) {
+  option (google.api.http) = {post:"/v1/collect-books" body:"book" response_body:"book"};
+ }
+ rpc Watch(GetRequest) returns (stream Reply) {
+  option (google.api.http) = {get:"/v1/watch/{id}"};
+ }
+ rpc Collect(stream GetRequest) returns (Reply) {
+  option (google.api.http) = {post:"/v1/collect" body:"*"};
+ }
+ rpc EchoID(stream GetRequest) returns (stream Reply) {
+  option (google.api.http) = {post:"/v1/echo/{id}" body:"*"};
+ }
+ rpc RawEcho(stream google.api.HttpBody) returns (stream google.api.HttpBody) {
+  option (google.api.http) = {post:"/v1/raw-echo" body:"*"};
+ }
+ rpc Echo(stream GetRequest) returns (stream Reply) {
+  option (google.api.http) = {post:"/v1/echo" body:"*"};
+ }
+}
+
+message AlternateUpdate { Book resource = 1; string tag = 2; }
+service Mirror {
+ rpc Publish(AlternateUpdate) returns (Reply) {
+  option (google.api.http) = {post:"/v1/{resource.name=projects/*/books/*}:mirror" body:"resource" response_body:"book"};
+ }
+}

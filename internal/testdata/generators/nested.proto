@@ -1,0 +1,10 @@
+syntax = "proto3";
+package acceptance.v1;
+option go_package = "example.com/spine-generator-test;fixture";
+import "errors/errors.proto";
+message NestedOnly {
+ enum Reason {
+  option (errors.default_code) = 401;
+  NESTED_ONLY = 0;
+ }
+}

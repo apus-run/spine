@@ -1,0 +1,7 @@
+syntax = "proto3";
+package acceptance.v1;
+option go_package = "example.com/spine-generator-test;fixture";
+enum Plain { PLAIN_UNSPECIFIED = 0; }
+
+message Empty {}
+service Unannotated { rpc Call(Empty) returns (Empty); }

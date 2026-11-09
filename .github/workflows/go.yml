@@ -116,3 +116,8 @@ jobs:
           go test ./...
         env:
           GOTOOLCHAIN: auto
+
+      - name: Generator end-to-end acceptance
+        run: ./hack/test-generators.sh
+        env:
+          GOTOOLCHAIN: auto
