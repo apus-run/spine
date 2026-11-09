@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	errorsPackage = protogen.GoImportPath("github.com/apus-run/spine/cmd/protoc-gen-go-errors/v3/errors")
+	errorsPackage = protogen.GoImportPath("github.com/apus-run/spine/v3/errors")
 	fmtPackage    = protogen.GoImportPath("fmt")
 )
 
@@ -23,7 +23,7 @@ var enCases = cases.Title(language.AmericanEnglish, cases.NoLower)
 
 // generateFile generates a _errors.pb.go file containing spine errors definitions.
 func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.GeneratedFile {
-	if len(file.Enums) == 0 {
+	if len(errorEnums(file)) == 0 {
 		return nil
 	}
 	filename := file.GeneratedFilenamePrefix + "_errors.pb.go"
@@ -39,7 +39,7 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 
 // generateFileContent generates the spine errors definitions, excluding the package statement.
 func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile) {
-	if len(file.Enums) == 0 {
+	if len(errorEnums(file)) == 0 {
 		return
 	}
 
@@ -48,7 +48,7 @@ func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.
 	g.P("const _ = ", errorsPackage.Ident("SupportPackageIsVersion1"))
 	g.P()
 	index := 0
-	for _, enum := range file.Enums {
+	for _, enum := range errorEnums(file) {
 		if !genErrorsReason(gen, file, g, enum) {
 			index++
 		}
@@ -59,16 +59,22 @@ func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.
 	}
 }
 
-func genErrorsReason(_ *protogen.Plugin, _ *protogen.File, g *protogen.GeneratedFile, enum *protogen.Enum) bool {
+func genErrorsReason(gen *protogen.Plugin, _ *protogen.File, g *protogen.GeneratedFile, enum *protogen.Enum) bool {
 	defaultCode := proto.GetExtension(enum.Desc.Options(), errors.E_DefaultCode)
 	code := 0
 	if ok := defaultCode.(int32); ok != 0 {
 		code = int(ok)
 	}
-	if code > 600 || code < 0 {
-		panic(fmt.Sprintf("Enum '%s' range must be greater than 0 and less than or equal to 600", string(enum.Desc.Name())))
+	if code != 0 && (code > 600 || code < 100) {
+		gen.Error(fmt.Errorf("enum %s: error code must be 0 or between 100 and 600", enum.Desc.FullName()))
+		return true
 	}
-	var ew errorWrapper
+	ew := errorWrapper{
+		ErrorType: g.QualifiedGoIdent(errorsPackage.Ident("Error")),
+		NewError:  g.QualifiedGoIdent(errorsPackage.Ident("New")),
+		FromError: g.QualifiedGoIdent(errorsPackage.Ident("FromError")),
+		Sprintf:   g.QualifiedGoIdent(fmtPackage.Ident("Sprintf")),
+	}
 	for _, v := range enum.Values {
 		enumCode := code
 		eCode := proto.GetExtension(v.Desc.Options(), errors.E_Code)
@@ -77,8 +83,9 @@ func genErrorsReason(_ *protogen.Plugin, _ *protogen.File, g *protogen.Generated
 		}
 		// If the current enumeration does not contain 'errors.code'
 		// or the code value exceeds the range, the current enum will be skipped
-		if enumCode > 600 || enumCode < 0 {
-			panic(fmt.Sprintf("Enum '%s' range must be greater than 0 and less than or equal to 600", string(v.Desc.Name())))
+		if enumCode != 0 && (enumCode > 600 || enumCode < 100) {
+			gen.Error(fmt.Errorf("enum value %s: error code must be 0 or between 100 and 600", v.Desc.FullName()))
+			return true
 		}
 		if enumCode == 0 {
 			continue
@@ -90,8 +97,7 @@ func genErrorsReason(_ *protogen.Plugin, _ *protogen.File, g *protogen.Generated
 		}
 
 		err := &errorInfo{
-			Name:       string(enum.Desc.Name()),
-			Value:      string(v.Desc.Name()),
+			GoValue:    v.GoIdent.GoName,
 			CamelValue: case2Camel(string(v.Desc.Name())),
 			HTTPCode:   enumCode,
 			Comment:    comment,
@@ -105,6 +111,50 @@ func genErrorsReason(_ *protogen.Plugin, _ *protogen.File, g *protogen.Generated
 	g.P(ew.execute())
 
 	return false
+}
+
+// Generated helpers share a Go package namespace even for nested enums or
+// enums declared in separate proto files. Reject ambiguous APIs early.
+func validateErrorNames(gen *protogen.Plugin) error {
+	names := make(map[string]string)
+	for _, file := range gen.Files {
+		if !file.Generate {
+			continue
+		}
+		for _, enum := range errorEnums(file) {
+			defaultCode := proto.GetExtension(enum.Desc.Options(), errors.E_DefaultCode).(int32)
+			for _, value := range enum.Values {
+				code := proto.GetExtension(value.Desc.Options(), errors.E_Code).(int32)
+				if code == 0 {
+					code = defaultCode
+				}
+				if code == 0 {
+					continue
+				}
+				name := case2Camel(string(value.Desc.Name()))
+				key := string(file.GoImportPath) + "/" + name
+				if previous, exists := names[key]; exists {
+					return fmt.Errorf("duplicate error helper %s for %s and %s; use distinct enum value names", name, previous, value.Desc.FullName())
+				}
+				names[key] = string(value.Desc.FullName())
+			}
+		}
+	}
+	return nil
+}
+
+// errorEnums includes nested declarations while retaining declaration order.
+func errorEnums(file *protogen.File) []*protogen.Enum {
+	enums := append([]*protogen.Enum(nil), file.Enums...)
+	var visit func([]*protogen.Message)
+	visit = func(messages []*protogen.Message) {
+		for _, message := range messages {
+			enums = append(enums, message.Enums...)
+			visit(message.Messages)
+		}
+	}
+	visit(file.Messages)
+	return enums
 }
 
 func case2Camel(name string) string {

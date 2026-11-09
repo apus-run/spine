@@ -21,6 +21,9 @@ func main() {
 		ParamFunc: flags.Set,
 	}.Run(func(gen *protogen.Plugin) error {
 		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
+		if err := validateErrorNames(gen); err != nil {
+			return err
+		}
 		for _, f := range gen.Files {
 			if !f.Generate {
 				continue

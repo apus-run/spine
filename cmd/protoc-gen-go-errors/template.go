@@ -10,8 +10,7 @@ import (
 var errorsTemplate string
 
 type errorInfo struct {
-	Name       string
-	Value      string
+	GoValue    string
 	HTTPCode   int
 	CamelValue string
 	Comment    string
@@ -19,7 +18,11 @@ type errorInfo struct {
 }
 
 type errorWrapper struct {
-	Errors []*errorInfo
+	ErrorType string
+	NewError  string
+	FromError string
+	Sprintf   string
+	Errors    []*errorInfo
 }
 
 func (e *errorWrapper) execute() string {
