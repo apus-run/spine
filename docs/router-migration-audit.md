@@ -525,9 +525,9 @@ transport request binding, and real HTTP hijacking through an Unwrap-only
 filter. Root lint/race/vet/build and generator race/vet pass locally.
 
 The previous commit's Go, Lint and CodeQL workflows are green. The separate
-Gitee mirror workflow fails with an invalid/missing access token and SSH
-permission denial; resolving that requires valid repository secrets. This
-is an external mirroring issue, not a passing production-runtime check.
+Gitee mirror workflow failed because of invalid credentials. At the user's
+request, its workflow was removed on 2026-11-09; GitHub remains the source
+repository and no automatic Gitee mirroring is configured.
 
 Scope of assurance: the HTTP migration and the reviewed integration paths.
 These fixes do not establish production readiness for every Spine module
