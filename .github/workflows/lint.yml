@@ -37,3 +37,6 @@ jobs:
       - name: Lint
         working-directory: ${{ matrix.workdir }}
         run: golangci-lint run --timeout=5m
+      - name: Check reachable known vulnerabilities
+        working-directory: ${{ matrix.workdir }}
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

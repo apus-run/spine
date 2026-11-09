@@ -532,3 +532,38 @@ repository and no automatic Gitee mirroring is configured.
 Scope of assurance: the HTTP migration and the reviewed integration paths.
 These fixes do not establish production readiness for every Spine module
 or replace workload-specific load tests, observability and rollout checks.
+
+## 15. Reachable vulnerability checks and toolchain alignment (2026-11-09)
+
+A source-level scan with `golang.org/x/vuln/cmd/govulncheck@v1.8.0`
+found security gaps that build, race, lint and CodeQL checks had not flagged.
+The installed older scanner was built with Go 1.25 and could not analyze
+this repository correctly; the pinned scanner was built with Go 1.27.3.
+
+| Scope | Correction | Advisory evidence |
+|---|---|---|
+| Root and dependent modules | gRPC v1.81.0 → v1.83.2 | [GO-2026-6061](https://pkg.go.dev/vuln/GO-2026-6061), [GO-2026-6348](https://pkg.go.dev/vuln/GO-2026-6348), [GO-2026-6443](https://pkg.go.dev/vuln/GO-2026-6443) |
+| Root and dependent modules | x/net v0.53.0/v0.54.0 → at least v0.60.0 | [GO-2026-6603](https://pkg.go.dev/vuln/GO-2026-6603), [GO-2026-6611](https://pkg.go.dev/vuln/GO-2026-6611), [GO-2026-6612](https://pkg.go.dev/vuln/GO-2026-6612), [GO-2026-6617](https://pkg.go.dev/vuln/GO-2026-6617) |
+| Error generator | x/text v0.37.0 → v0.42.0 | [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970) |
+| OpenTelemetry contrib | SDK/API/metric/trace → v1.45.0 | [GO-2026-6505](https://pkg.go.dev/vuln/GO-2026-6505), an upstream advisory marked unreviewed by the Go database |
+| CLI and error generator | Complete the previously approved Go 1.27.3 minimum alignment | The CLI previously selected the host Go 1.25.8 toolchain and reported vulnerable standard-library calls |
+
+The gRPC 1.83 branch requires v1.83.2 for the authority-header advisory;
+v1.83.1 alone is insufficient. The old x/net downgrade workaround is no
+longer needed: v0.60.0 exposes TrailerPrefix in server_common.go even on
+Go 1.27. Ancillary module changes come from the selected dependencies'
+minimum versions and `go mod tidy`; higher existing versions are retained.
+
+Verification: all 29 modules completed source-level govulncheck with zero
+reachable findings. This does not mean every required module is free of
+advisories: some reports concern packages the code does not import or call.
+All modules build and pass vet; root race tests and lint pass. The changed
+CLI, error generator and OpenTelemetry modules also pass race tests and
+lint. The existing matrix now runs the pinned vulnerability scan for every
+module, preventing a future downgrade from silently reopening these gaps.
+
+Additional CLI verification exposed a pre-existing panic on invalid timeout
+or unavailable interactive terminal, and swallowed project-creation errors.
+The `new` command now returns errors through Cobra RunE and honors command
+cancellation. Its tests use local git fixtures, exercise both successful
+creation and failures, and run in CI without TTY or network requirements.
