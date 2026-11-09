@@ -155,7 +155,7 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 		path       strings.Builder
 		bindings   []PathBinding
 		validators []valueValidator
-		used       = map[string]int{}
+		used       = map[string]bool{}
 		nextSynth  int
 	)
 	// newWildcard names a pattern wildcard after the field when possible,
@@ -169,10 +169,10 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 			nextSynth++
 		}
 		n := base
-		if used[base] > 0 {
-			n = fmt.Sprintf("%s%d", base, used[base])
+		for suffix := 1; used[n]; suffix++ {
+			n = fmt.Sprintf("%s%d", base, suffix)
 		}
-		used[base]++
+		used[n] = true
 		return n
 	}
 
@@ -186,7 +186,7 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 			i++
 			continue
 		}
-		end := strings.IndexByte(rest[i:], '}')
+		end := routeVariableEnd(rest[i:])
 		if end < 0 {
 			return nil, fmt.Errorf("invalid route path %q: unclosed '{'", tpl)
 		}
@@ -257,6 +257,12 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 	}
 
 	cr.pattern = path.String()
+	// A literal final segment can carry its action directly in the pattern.
+	// Earlier wildcards must not be used to dispatch this suffix.
+	if cr.action != "" && !strings.HasSuffix(cr.pattern, "}") {
+		cr.pattern += ":" + cr.action
+		cr.action = ""
+	}
 	cr.bindings = bindings
 	cr.validators = validators
 	// Exactness: trailing-slash registrations (including "/") match only
@@ -265,6 +271,37 @@ func compileRoute(tpl string) (*compiledRoute, error) {
 		cr.pattern += "{$}"
 	}
 	return cr, nil
+}
+
+// routeVariableEnd skips regex quantifiers, escaped braces, and character
+// classes while locating the closing brace of a legacy route variable.
+func routeVariableEnd(s string) int {
+	depth := 0
+	inClass := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' {
+			i++
+			continue
+		}
+		if inClass {
+			if s[i] == ']' {
+				inClass = false
+			}
+			continue
+		}
+		switch s[i] {
+		case '[':
+			inClass = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // cutVar splits a variable body into field and constraint. Both the

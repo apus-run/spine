@@ -11,7 +11,7 @@ package main
 //	/v1/{name=projects/*/books/*}     -> /v1/projects/{p0}/books/{p1}
 //	                                                                  name = projects/p0/books/p1
 //	/v1/{name=messages/**}            -> /v1/messages/{p0...}      name = messages/+p0
-//	/v1/{name=books/*}:publish        -> /v1/{p0}                  action "publish",
+//	/v1/{name=books/*}:publish        -> /v1/books/{p0}                  action "publish",
 //	                                                                  p0 captures "42:publish"
 
 import (
@@ -122,6 +122,10 @@ func compilePattern(tpl string) (*compiledPattern, error) {
 		i += end + 1
 	}
 	cp.Path = path.String()
+	if cp.Action != "" && !strings.HasSuffix(cp.Path, "}") {
+		cp.Path += ":" + cp.Action
+		cp.Action = ""
+	}
 	if strings.HasSuffix(cp.Path, "/") {
 		cp.Path += "{$}"
 	}

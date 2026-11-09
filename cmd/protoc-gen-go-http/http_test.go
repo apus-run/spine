@@ -420,3 +420,15 @@ func TestExactRootAndTrailingSlash(t *testing.T) {
 		}
 	}
 }
+
+func TestLiteralActionPatterns(t *testing.T) {
+	for _, tc := range []struct{ template, pattern string }{
+		{"/v1/{name=books/special}:publish", "/v1/books/special:publish"},
+		{"/v1/{name=projects/*/books/special}:publish", "/v1/projects/{p0}/books/special:publish"},
+	} {
+		cp := mustCompile(t, tc.template)
+		if cp.Path != tc.pattern || cp.Action != "" {
+			t.Errorf("%s: path=%q action=%q", tc.template, cp.Path, cp.Action)
+		}
+	}
+}

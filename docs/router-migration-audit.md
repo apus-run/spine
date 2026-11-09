@@ -465,3 +465,32 @@ relaxed. Local root and generator lint now report zero issues after
 correcting migration-test unused parameters, formatting the generator
 metadata struct, and expressing character checks without negated unions.
 Remote workflows must still complete before the full-CI gate closes.
+
+## 13. Production review regressions (2026-11-09)
+
+A subsequent independent review found four gaps despite the earlier green
+CI. Passing migration tests was insufficient evidence for blanket production
+readiness. The following corrections address the concrete reproductions:
+
+- Reserve every emitted wildcard name, including suffixed synthetic names,
+  so `/{book.name}/{p0}/{p01}` registers without duplicate-name panic and
+  preserves the original business field values.
+- Scan legacy variable boundaries with balanced braces, respecting escapes
+  and character classes, so regex quantifiers such as `{2}` and `{2,3}`
+  do not prematurely terminate the route variable.
+- Compile custom actions on literal final segments as literal suffixes in
+  both runtime compatibility and the generator. For example,
+  `/v1/{name=books/special}:publish` becomes
+  `/v1/books/special:publish`; it needs no wildcard-based action dispatch.
+  A wildcard in an earlier segment must not receive that action suffix.
+- Forward informational HTTP statuses without committing the wrapper's
+  final status. Multiple 103 responses can precede a final 201. Status 101
+  remains terminal for protocol switching.
+
+`production_regression_test.go` covers the real registration/request paths,
+field values, regex rejection cases, escaped/class-contained braces,
+known/unknown actions, and real HTTP informational/final responses.
+Generator tests cover both a constant resource and an earlier wildcard
+with a constant final segment. Root and generator lint, race tests and vet
+pass locally. These targeted fixes are not a certification of all Spine
+modules or a substitute for application-specific load and rollout testing.

@@ -686,6 +686,12 @@ func (w *statusWriter) WriteHeader(code int) {
 	if w.wroteHeader {
 		return
 	}
+	// Informational responses do not commit the final response. Switching
+	// protocols is terminal and retains the usual single-header behavior.
+	if code >= 100 && code < 200 && code != http.StatusSwitchingProtocols {
+		w.ResponseWriter.WriteHeader(code)
+		return
+	}
 	w.wroteHeader = true
 	w.status = code
 	// The StrictSlash alias also needs the 404 intercepted, even when no
