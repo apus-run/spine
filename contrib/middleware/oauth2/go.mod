@@ -3,7 +3,7 @@ module github.com/apus-run/spine/contrib/middleware/oauth2/v3
 go 1.27.3
 
 require (
-	github.com/apus-run/spine/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.1.0
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.83.2
 )

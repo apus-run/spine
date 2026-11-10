@@ -16,7 +16,7 @@ import (
 )
 
 var projects = map[string]string{
-	"service": "https://github.com/go-kratos/kratos-layout.git",
+	"service": "https://github.com/apus-run/spine-layout.git",
 	"admin":   "https://github.com/go-kratos/kratos-admin.git",
 }
 
@@ -24,7 +24,7 @@ var projects = map[string]string{
 var CmdNew = &cobra.Command{
 	Use:   "new",
 	Short: "Create a service template",
-	Long:  "Create a service project using the repository template. Example: kratos new helloworld",
+	Long:  "Create a service project using the repository template. Example: spine new helloworld",
 	RunE:  run,
 }
 

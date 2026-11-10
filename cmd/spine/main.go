@@ -13,9 +13,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "kratos",
-	Short:   "Kratos: An elegant toolkit for Go microservices.",
-	Long:    `Kratos: An elegant toolkit for Go microservices.`,
+	Use:     "spine",
+	Short:   "Spine: A toolkit for Go microservices.",
+	Long:    `Spine: A toolkit for Go microservices.`,
 	Version: release,
 }
 

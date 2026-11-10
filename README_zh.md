@@ -36,14 +36,16 @@ Spine 是一套轻量级 Go 微服务框架，围绕传输、Middleware、注册
 
 ### 环境要求
 
-- [Go](https://go.dev/dl/) 1.25 或更高版本
+- [Go](https://go.dev/dl/) 1.27.3 或更高版本
 - [protoc](https://github.com/protocolbuffers/protobuf)
 - [protoc-gen-go](https://github.com/protocolbuffers/protobuf-go)
 
 ### 安装 CLI
 
 ```shell
-go install github.com/apus-run/spine/v3/cmd/spine@latest
+go install github.com/apus-run/spine/cmd/spine/v3@v3.1.0
+go install github.com/apus-run/spine/cmd/protoc-gen-go-http/v3@v3.1.0
+go install github.com/apus-run/spine/cmd/protoc-gen-go-errors/v3@v3.1.0
 spine upgrade
 ```
 

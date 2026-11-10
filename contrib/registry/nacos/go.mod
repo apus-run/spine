@@ -3,7 +3,7 @@ module github.com/apus-run/spine/contrib/registry/nacos/v3
 go 1.27.3
 
 require (
-	github.com/apus-run/spine/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.1.0
 	github.com/golang/mock v1.6.0
 	github.com/nacos-group/nacos-sdk-go/v2 v2.3.5
 )

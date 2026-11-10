@@ -3,7 +3,7 @@ module github.com/apus-run/spine/contrib/opensergo/v3
 go 1.27.3
 
 require (
-	github.com/apus-run/spine/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.1.0
 	github.com/opensergo/opensergo-go v0.0.0-20220331070310-e5b01fee4d1c
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa
 	google.golang.org/grpc v1.83.2

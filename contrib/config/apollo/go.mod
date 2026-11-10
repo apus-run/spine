@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/apolloconfig/agollo/v4 v4.4.0
-	github.com/apus-run/spine/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.1.0
 )
 
 require (

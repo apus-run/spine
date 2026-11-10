@@ -36,14 +36,16 @@ Spine is a lightweight Go framework for building cloud-native microservices. It 
 
 ### Requirements
 
-- [Go](https://go.dev/dl/) 1.25 or later
+- [Go](https://go.dev/dl/) 1.27.3 or later
 - [protoc](https://github.com/protocolbuffers/protobuf)
 - [protoc-gen-go](https://github.com/protocolbuffers/protobuf-go)
 
 ### Install the CLI
 
 ```shell
-go install github.com/apus-run/spine/v3/cmd/spine@latest
+go install github.com/apus-run/spine/cmd/spine/v3@v3.1.0
+go install github.com/apus-run/spine/cmd/protoc-gen-go-http/v3@v3.1.0
+go install github.com/apus-run/spine/cmd/protoc-gen-go-errors/v3@v3.1.0
 spine upgrade
 ```
 

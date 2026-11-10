@@ -3,7 +3,7 @@ module github.com/apus-run/spine/contrib/registry/kubernetes/v3
 go 1.27.3
 
 require (
-	github.com/apus-run/spine/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	k8s.io/api v0.36.1
 	k8s.io/apimachinery v0.36.1
