@@ -150,12 +150,13 @@ func WithTLSConfig(c *tls.Config) ClientOption {
 
 // Client is an HTTP client.
 type Client struct {
-	opts     clientOptions
-	target   *Target
-	r        *resolver
-	cc       *http.Client
-	insecure bool
-	selector selector.Selector
+	opts          clientOptions
+	target        *Target
+	r             *resolver
+	cc            *http.Client
+	insecure      bool
+	selector      selector.Selector
+	ownsTransport bool
 }
 
 // NewClient returns an HTTP client.
@@ -166,17 +167,31 @@ func NewClient(ctx context.Context, opts ...ClientOption) (*Client, error) {
 		encoder:      DefaultRequestEncoder,
 		decoder:      DefaultResponseDecoder,
 		errorDecoder: DefaultErrorDecoder,
-		transport:    http.DefaultTransport,
 		subsetSize:   25,
 	}
 	for _, o := range opts {
 		o(&options)
+	}
+	ownsTransport := false
+	if options.transport == nil {
+		options.transport = http.DefaultTransport
+		if base, ok := http.DefaultTransport.(*http.Transport); ok {
+			cloned := base.Clone()
+			// Concurrent RPC callers should reuse idle connections between bursts.
+			// WithTransport can supply workload-specific pool limits.
+			if cloned.MaxIdleConnsPerHost == 0 {
+				cloned.MaxIdleConnsPerHost = 100
+			}
+			options.transport = cloned
+			ownsTransport = true
+		}
 	}
 	if options.tlsConf != nil {
 		if tr, ok := options.transport.(*http.Transport); ok {
 			cloned := tr.Clone()
 			cloned.TLSClientConfig = options.tlsConf
 			options.transport = cloned
+			ownsTransport = true
 		}
 	}
 	insecure := options.tlsConf == nil
@@ -196,10 +211,11 @@ func NewClient(ctx context.Context, opts ...ClientOption) (*Client, error) {
 		}
 	}
 	return &Client{
-		opts:     options,
-		target:   target,
-		insecure: insecure,
-		r:        r,
+		ownsTransport: ownsTransport,
+		opts:          options,
+		target:        target,
+		insecure:      insecure,
+		r:             r,
 		cc: &http.Client{
 			Timeout:   options.timeout,
 			Transport: options.transport,
@@ -334,8 +350,11 @@ func (client *Client) do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// Close tears down the Transport and all underlying connections.
+// Close stops discovery and closes idle connections owned by the client.
 func (client *Client) Close() error {
+	if client.ownsTransport {
+		client.cc.CloseIdleConnections()
+	}
 	if client.r != nil {
 		return client.r.Close()
 	}
