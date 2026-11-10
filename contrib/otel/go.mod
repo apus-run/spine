@@ -3,7 +3,7 @@ module github.com/apus-run/spine/contrib/otel/v3
 go 1.27.3
 
 require (
-	github.com/apus-run/spine/v3 v3.0.0
+	github.com/apus-run/spine/v3 v3.0.0-20261109093325-a1be599b1439
 	go.opentelemetry.io/contrib/bridges/otelslog v0.18.0
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/log v0.19.0
