@@ -839,7 +839,7 @@ func clientStreamFromHandler(v any) (ClientStream, error) {
 
 func prepareClientRequest(client *Client, req *stdhttp.Request, contentType string, c callInfo) {
 	if c.headerCarrier != nil {
-		req.Header = *c.headerCarrier
+		req.Header = (*c.headerCarrier).Clone()
 	}
 	if contentType != "" {
 		req.Header.Set("Content-Type", c.contentType)

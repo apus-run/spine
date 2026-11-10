@@ -250,7 +250,7 @@ func (client *Client) Invoke(ctx context.Context, method, path string, args any,
 		return err
 	}
 	if c.headerCarrier != nil {
-		req.Header = *c.headerCarrier
+		req.Header = (*c.headerCarrier).Clone()
 	}
 
 	if contentType != "" {
