@@ -716,7 +716,7 @@ func (client *Client) WebSocket(ctx context.Context, path string, opts ...CallOp
 	}
 	url := fmt.Sprintf("%s://%s%s", scheme, client.target.Authority, path)
 	header := stdhttp.Header{}
-	if c.headerCarrier != nil {
+	if c.headerCarrier != nil && *c.headerCarrier != nil {
 		header = (*c.headerCarrier).Clone()
 	}
 	header.Set(websocketErrorFormatHeader, websocketErrorFormatJSON)
@@ -838,7 +838,7 @@ func clientStreamFromHandler(v any) (ClientStream, error) {
 }
 
 func prepareClientRequest(client *Client, req *stdhttp.Request, contentType string, c callInfo) {
-	if c.headerCarrier != nil {
+	if c.headerCarrier != nil && *c.headerCarrier != nil {
 		req.Header = (*c.headerCarrier).Clone()
 	}
 	if contentType != "" {

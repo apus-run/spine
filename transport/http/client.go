@@ -249,7 +249,7 @@ func (client *Client) Invoke(ctx context.Context, method, path string, args any,
 	if err != nil {
 		return err
 	}
-	if c.headerCarrier != nil {
+	if c.headerCarrier != nil && *c.headerCarrier != nil {
 		req.Header = (*c.headerCarrier).Clone()
 	}
 
